@@ -1,0 +1,29 @@
+{
+  "name": "meeting-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.5.0",
+  "engines": {
+    "node": ">=20.9.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @meeting-intelligence/database db:generate",
+    "db:migrate": "pnpm --filter @meeting-intelligence/database db:migrate",
+    "db:studio": "pnpm --filter @meeting-intelligence/database db:studio"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
+  }
+}

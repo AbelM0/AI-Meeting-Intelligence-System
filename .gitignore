@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+dist/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Environment files (examples remain tracked)
+.env
+.env.*
+!.env.example
+
+# Prisma local artifacts
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
