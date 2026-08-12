@@ -4,9 +4,7 @@ import tailwindAnimate from 'tailwindcss-animate';
 const config: Config = {
   darkMode: ['class'],
   content: [
-    './src/pages/**/*.{ts,tsx}',
-    './src/components/**/*.{ts,tsx}',
-    './src/app/**/*.{ts,tsx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     container: {
@@ -22,8 +20,11 @@ const config: Config = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
-        },
       },
+      boxShadow: {
+        soft: '0 18px 50px -24px rgb(15 23 42 / 0.22)',
+      },
+  },
     },
   },
   plugins: [tailwindAnimate],

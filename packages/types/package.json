@@ -18,6 +18,9 @@
     "lint": "eslint src --ext .ts --config ../../.eslintrc.json",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@meeting-intelligence/schemas": "workspace:*"
+  },
   "devDependencies": {
     "typescript": "^5.5.0"
   }

@@ -6,3 +6,41 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+enum MeetingStatus {
+  UPLOADED
+  QUEUED
+  PREPROCESSING
+  TRANSCRIBING
+  ANALYZING
+  COMPLETED
+  FAILED
+}
+
+model Meeting {
+  id            String         @id @default(uuid()) @db.Uuid
+  title         String
+  audioPath     String?
+  audioFileName String?
+  audioMimeType String?
+  fileSize      Int?
+  duration      Float?
+  language      String?
+  status        MeetingStatus  @default(UPLOADED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  processingJob ProcessingJob?
+}
+
+model ProcessingJob {
+  id           String    @id @default(uuid()) @db.Uuid
+  meetingId    String    @unique @db.Uuid
+  progress     Int       @default(0)
+  currentStage String?
+  error        String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  meeting      Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
