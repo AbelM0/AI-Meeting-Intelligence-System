@@ -1,8 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Meeting } from '@meeting-intelligence/types';
-import { useState } from 'react';
+import type { AudioUploadAuthorization, Meeting } from '@meeting-intelligence/types';
+import { useCallback, useRef, useState } from 'react';
 import {
   confirmAudioUpload,
   createMeeting,
@@ -10,8 +10,12 @@ import {
   getMeeting,
   getMeetings,
   requestAudioUpload,
-  uploadAudioToStorage,
 } from '../api/meetings';
+import {
+  uploadMeetingAudio,
+  type AudioUploadProgress,
+  type MeetingAudioUpload,
+} from '../uploads/upload-audio';
 
 export const meetingQueryKeys = {
   all: ['meetings'] as const,
@@ -60,31 +64,96 @@ export function useDeleteMeeting() {
   });
 }
 
-export type AudioUploadStage = 'idle' | 'authorizing' | 'uploading' | 'confirming';
+export type AudioUploadStage =
+  'idle' | 'file_selected' | 'preparing' | 'uploading' | 'confirming' | 'success' | 'error';
+
+export type AudioUploadFailure = 'transfer' | 'confirmation' | null;
+
+const EMPTY_PROGRESS: AudioUploadProgress = {
+  bytesUploaded: 0,
+  bytesTotal: 0,
+  percentage: 0,
+};
 
 export function useAudioUpload(meetingId: string) {
   const queryClient = useQueryClient();
   const [stage, setStage] = useState<AudioUploadStage>('idle');
+  const [progress, setProgress] = useState<AudioUploadProgress>(EMPTY_PROGRESS);
+  const [failure, setFailure] = useState<AudioUploadFailure>(null);
+  const uploadRef = useRef<MeetingAudioUpload | null>(null);
+  const authorizationRef = useRef<AudioUploadAuthorization | null>(null);
+  const fileRef = useRef<File | null>(null);
+
+  const confirm = useCallback(
+    async (file: File, authorization: AudioUploadAuthorization) => {
+      setStage('confirming');
+      setProgress({ bytesUploaded: file.size, bytesTotal: file.size, percentage: 100 });
+      try {
+        return await confirmAudioUpload(meetingId, {
+          fileName: file.name,
+          mimeType: file.type,
+          fileSize: file.size,
+          audioPath: authorization.path,
+        });
+      } catch (error) {
+        setFailure('confirmation');
+        setStage('error');
+        throw error;
+      }
+    },
+    [meetingId],
+  );
 
   const mutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async (input: File | { file: File; confirmationOnly: true }) => {
+      const file = input instanceof File ? input : input.file;
       const metadata = {
         fileName: file.name,
         mimeType: file.type,
         fileSize: file.size,
       };
 
-      setStage('authorizing');
-      const authorization = await requestAudioUpload(meetingId, metadata);
+      fileRef.current = file;
+      setFailure(null);
+      setProgress({ bytesUploaded: 0, bytesTotal: file.size, percentage: 0 });
+      setStage('preparing');
+      let authorization = authorizationRef.current;
+      if (!authorization) {
+        try {
+          authorization = await requestAudioUpload(meetingId, metadata);
+        } catch (error) {
+          setFailure('transfer');
+          setStage('error');
+          throw error;
+        }
+      }
+      authorizationRef.current = authorization;
+
+      if (!(input instanceof File) && input.confirmationOnly) {
+        return confirm(file, authorization);
+      }
 
       setStage('uploading');
-      await uploadAudioToStorage(authorization, file);
-
-      setStage('confirming');
-      return confirmAudioUpload(meetingId, {
-        ...metadata,
-        audioPath: authorization.path,
+      const activeUpload = uploadMeetingAudio({
+        file,
+        token: authorization.token,
+        bucketName: authorization.bucket,
+        storagePath: authorization.path,
+        onProgress: setProgress,
       });
+      uploadRef.current = activeUpload;
+      try {
+        await activeUpload.completion;
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') throw error;
+        setFailure('transfer');
+        setStage('error');
+        throw error;
+      } finally {
+        uploadRef.current = null;
+      }
+
+      return confirm(file, authorization);
     },
     onSuccess: async (meeting) => {
       queryClient.setQueryData(meetingQueryKeys.detail(meetingId), meeting);
@@ -92,9 +161,51 @@ export function useAudioUpload(meetingId: string) {
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
       ]);
+      authorizationRef.current = null;
+      fileRef.current = null;
+      setFailure(null);
+      setStage('success');
     },
-    onSettled: () => setStage('idle'),
   });
 
-  return { ...mutation, stage };
+  const selectFile = useCallback(() => {
+    authorizationRef.current = null;
+    fileRef.current = null;
+    setFailure(null);
+    setProgress(EMPTY_PROGRESS);
+    setStage('file_selected');
+    mutation.reset();
+  }, [mutation]);
+
+  const reset = useCallback(() => {
+    authorizationRef.current = null;
+    fileRef.current = null;
+    setFailure(null);
+    setProgress(EMPTY_PROGRESS);
+    setStage('idle');
+    mutation.reset();
+  }, [mutation]);
+
+  const cancel = useCallback(async () => {
+    await uploadRef.current?.abort();
+    uploadRef.current = null;
+    setFailure(null);
+    setStage(fileRef.current ? 'file_selected' : 'idle');
+    mutation.reset();
+  }, [mutation]);
+
+  const retry = useCallback(() => {
+    const file = fileRef.current;
+    const authorization = authorizationRef.current;
+    if (!file || mutation.isPending) return;
+
+    if (failure === 'confirmation' && authorization) {
+      mutation.mutate({ file, confirmationOnly: true });
+      return;
+    }
+
+    mutation.mutate(file);
+  }, [failure, mutation]);
+
+  return { ...mutation, stage, progress, failure, selectFile, reset, cancel, retry };
 }
