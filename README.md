@@ -1,6 +1,6 @@
 # AI Meeting Intelligence System
 
-Production-oriented monorepo foundation for an AI meeting intelligence platform. This repository currently contains infrastructure and framework setup only; application features have not been implemented.
+Production-oriented monorepo for an AI meeting intelligence platform. Meetings can be created and managed, and each meeting can securely attach one recording in private Supabase Storage.
 
 ## Workspace
 
@@ -25,7 +25,7 @@ Production-oriented monorepo foundation for an AI meeting intelligence platform.
    pnpm install
    ```
 
-3. Copy `.env.example` to `.env`. Also copy `packages/database/.env.example` to `packages/database/.env` and `apps/web/.env.example` to `apps/web/.env.local`. Set the database URL before using Prisma against a database.
+3. Copy `.env.example` to `.env`. Also copy `packages/database/.env.example` to `packages/database/.env` and `apps/web/.env.example` to `apps/web/.env.local`. Set the database and Supabase values before using recording uploads.
 4. Start Redis:
 
    ```bash
@@ -61,7 +61,9 @@ pnpm dev
 
 ## Environment configuration
 
-The API loads `apps/api/.env` first and then the root `.env`. For the simplest setup, keep backend variables in the root `.env`. Prisma CLI resolves its environment relative to `packages/database`, so put `DATABASE_URL` in `packages/database/.env` (or export it in your shell). Next.js loads `NEXT_PUBLIC_API_URL` from `apps/web/.env.local`; browser-readable values must use the `NEXT_PUBLIC_` prefix.
+The API loads `apps/api/.env` first and then the root `.env`. For the simplest setup, keep backend variables in the root `.env`. Prisma CLI resolves its environment relative to `packages/database`, so put `DATABASE_URL` in `packages/database/.env` (or export it in your shell). Next.js loads browser configuration from `apps/web/.env.local`; browser-readable values must use the `NEXT_PUBLIC_` prefix.
+
+Create a private Supabase Storage bucket named `meeting-audio`. The API checks that this bucket is private before authorizing an upload. The service-role key belongs only in the backend/root environment; never add it to a `NEXT_PUBLIC_` variable.
 
 | Variable                             | Purpose                                              |
 | ------------------------------------ | ---------------------------------------------------- |
@@ -70,8 +72,11 @@ The API loads `apps/api/.env` first and then the root `.env`. For the simplest s
 | `NEXT_PUBLIC_API_URL`                | Browser-facing base URL for the REST API             |
 | `REDIS_HOST`, `REDIS_PORT`           | Local or hosted Redis connection                     |
 | `SUPABASE_URL`                       | Supabase project URL                                 |
-| `SUPABASE_ANON_KEY`                  | Browser-safe Supabase anonymous key                  |
 | `SUPABASE_SERVICE_ROLE_KEY`          | Server-only Supabase administrative key              |
+| `SUPABASE_AUDIO_BUCKET`              | Private recording bucket (default `meeting-audio`)   |
+| `MAX_AUDIO_FILE_SIZE_MB`             | Backend recording size limit (default `50`)          |
+| `NEXT_PUBLIC_SUPABASE_URL`           | Browser-safe Supabase project URL                    |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`      | Browser-safe Supabase anonymous key                  |
 | `GROQ_API_KEY`                       | Future Groq integration credential                   |
 | `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL` | Future DeepSeek integration configuration            |
 

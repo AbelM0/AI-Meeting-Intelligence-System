@@ -21,3 +21,9 @@ export type Meeting = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type AudioUploadAuthorization = {
+  bucket: string;
+  path: string;
+  token: string;
+};

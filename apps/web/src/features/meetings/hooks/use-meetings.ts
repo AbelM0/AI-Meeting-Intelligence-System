@@ -2,7 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Meeting } from '@meeting-intelligence/types';
-import { createMeeting, deleteMeeting, getMeeting, getMeetings } from '../api/meetings';
+import { useState } from 'react';
+import {
+  confirmAudioUpload,
+  createMeeting,
+  deleteMeeting,
+  getMeeting,
+  getMeetings,
+  requestAudioUpload,
+  uploadAudioToStorage,
+} from '../api/meetings';
 
 export const meetingQueryKeys = {
   all: ['meetings'] as const,
@@ -49,4 +58,43 @@ export function useDeleteMeeting() {
       await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all });
     },
   });
+}
+
+export type AudioUploadStage = 'idle' | 'authorizing' | 'uploading' | 'confirming';
+
+export function useAudioUpload(meetingId: string) {
+  const queryClient = useQueryClient();
+  const [stage, setStage] = useState<AudioUploadStage>('idle');
+
+  const mutation = useMutation({
+    mutationFn: async (file: File) => {
+      const metadata = {
+        fileName: file.name,
+        mimeType: file.type,
+        fileSize: file.size,
+      };
+
+      setStage('authorizing');
+      const authorization = await requestAudioUpload(meetingId, metadata);
+
+      setStage('uploading');
+      await uploadAudioToStorage(authorization, file);
+
+      setStage('confirming');
+      return confirmAudioUpload(meetingId, {
+        ...metadata,
+        audioPath: authorization.path,
+      });
+    },
+    onSuccess: async (meeting) => {
+      queryClient.setQueryData(meetingQueryKeys.detail(meetingId), meeting);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
+      ]);
+    },
+    onSettled: () => setStage('idle'),
+  });
+
+  return { ...mutation, stage };
 }

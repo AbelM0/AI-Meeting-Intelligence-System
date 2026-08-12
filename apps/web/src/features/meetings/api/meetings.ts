@@ -1,6 +1,11 @@
-import type { CreateMeetingInput } from '@meeting-intelligence/schemas';
-import type { Meeting } from '@meeting-intelligence/types';
+import type {
+  ConfirmAudioUploadInput,
+  CreateMeetingInput,
+  RequestAudioUploadInput,
+} from '@meeting-intelligence/schemas';
+import type { AudioUploadAuthorization, Meeting } from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
 
 export async function createMeeting(input: CreateMeetingInput): Promise<Meeting> {
   const { data } = await apiClient.post<Meeting>('/meetings', input);
@@ -19,4 +24,39 @@ export async function getMeeting(id: string): Promise<Meeting> {
 
 export async function deleteMeeting(id: string): Promise<void> {
   await apiClient.delete(`/meetings/${id}`);
+}
+
+export async function requestAudioUpload(
+  meetingId: string,
+  input: RequestAudioUploadInput,
+): Promise<AudioUploadAuthorization> {
+  const { data } = await apiClient.post<AudioUploadAuthorization>(
+    `/meetings/${meetingId}/audio/upload-url`,
+    input,
+  );
+  return data;
+}
+
+export async function uploadAudioToStorage(
+  authorization: AudioUploadAuthorization,
+  file: File,
+): Promise<void> {
+  const { error } = await getSupabaseBrowserClient()
+    .storage.from(authorization.bucket)
+    .uploadToSignedUrl(authorization.path, authorization.token, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+    });
+
+  if (error) {
+    throw new Error('The recording could not be uploaded to secure storage. Please retry.');
+  }
+}
+
+export async function confirmAudioUpload(
+  meetingId: string,
+  input: ConfirmAudioUploadInput,
+): Promise<Meeting> {
+  const { data } = await apiClient.post<Meeting>(`/meetings/${meetingId}/audio/confirm`, input);
+  return data;
 }

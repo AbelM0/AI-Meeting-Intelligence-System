@@ -10,7 +10,15 @@ import {
   Post,
 } from '@nestjs/common';
 import type { MeetingRecord } from '@meeting-intelligence/database';
-import { createMeetingSchema, type CreateMeetingInput } from '@meeting-intelligence/schemas';
+import {
+  confirmAudioUploadSchema,
+  createMeetingSchema,
+  requestAudioUploadSchema,
+  type ConfirmAudioUploadInput,
+  type CreateMeetingInput,
+  type RequestAudioUploadInput,
+} from '@meeting-intelligence/schemas';
+import type { AudioUploadAuthorization } from '@meeting-intelligence/types';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
 
@@ -33,6 +41,22 @@ export class MeetingsController {
   @Get(':id')
   findOne(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<MeetingRecord> {
     return this.meetingsService.findOne(id);
+  }
+
+  @Post(':id/audio/upload-url')
+  createAudioUpload(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body(new ZodValidationPipe(requestAudioUploadSchema)) input: RequestAudioUploadInput,
+  ): Promise<AudioUploadAuthorization> {
+    return this.meetingsService.createAudioUpload(id, input);
+  }
+
+  @Post(':id/audio/confirm')
+  confirmAudioUpload(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body(new ZodValidationPipe(confirmAudioUploadSchema)) input: ConfirmAudioUploadInput,
+  ): Promise<MeetingRecord> {
+    return this.meetingsService.confirmAudioUpload(id, input);
   }
 
   @Delete(':id')

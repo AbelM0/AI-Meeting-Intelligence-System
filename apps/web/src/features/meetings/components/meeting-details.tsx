@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeeting } from '../hooks/use-meetings';
 import { MeetingStatusBadge } from './meeting-status-badge';
+import { AudioRecording } from './audio-recording';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -53,14 +54,15 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
             </div>
           </div>
         </div>
-        <div className="mt-8 rounded-lg bg-zinc-50 p-5">
-          <div className="flex items-center gap-3 text-zinc-700">
-            <FileAudio className="h-5 w-5" aria-hidden="true" />
+        <div className="mt-8 border-t border-slate-100 pt-6">
+          <div className="mb-4 flex items-center gap-2 text-slate-800">
+            <FileAudio className="h-5 w-5 text-indigo-600" aria-hidden="true" />
             <div>
-              <p className="text-sm font-medium">Audio</p>
-              <p className="text-sm text-zinc-500">Not uploaded yet</p>
+              <h2 className="font-semibold">Recording</h2>
+              <p className="text-sm text-slate-500">Private audio for this meeting</p>
             </div>
           </div>
+          <AudioRecording meeting={meeting} />
         </div>
       </article>
     </div>
