@@ -1,6 +1,14 @@
 'use client';
 
-import { Activity, CalendarDays, CheckCircle2, Mic2, Search, Sparkles } from 'lucide-react';
+import {
+  Activity,
+  AudioLines,
+  CheckCircle2,
+  FileAudio2,
+  Search,
+  ShieldCheck,
+  TriangleAlert,
+} from 'lucide-react';
 import { useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeetings } from '../hooks/use-meetings';
@@ -21,94 +29,191 @@ export function MeetingsDashboard() {
   const activeCount = meetings.filter((meeting) =>
     ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'].includes(meeting.status),
   ).length;
+  const uploadedCount = meetings.filter((meeting) => meeting.status === 'UPLOADED').length;
+  const failedCount = meetings.filter((meeting) => meeting.status === 'FAILED').length;
+
+  const summary = [
+    { label: 'Total', value: meetings.length, icon: FileAudio2 },
+    { label: 'Ready', value: uploadedCount, icon: ShieldCheck },
+    { label: 'Processing', value: activeCount, icon: Activity },
+    { label: 'Completed', value: completedCount, icon: CheckCircle2 },
+  ];
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-50 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-indigo-100/70 via-violet-50/40 to-transparent" />
-      <div className="pointer-events-none absolute -right-32 top-20 h-72 w-72 rounded-full bg-fuchsia-200/25 blur-3xl" />
+    <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10 lg:py-12">
+      <header className="grid gap-6 border-b border-[#e5e7eb] pb-8 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div>
+          <h1 className="max-w-3xl text-[clamp(2.5rem,5vw,4rem)] font-medium leading-[1.04] tracking-[-0.04em] text-[#111827]">
+            Meetings
+          </h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-[#4b5563]">
+            Create a meeting, attach its private recording, and follow every processing state.
+          </p>
+        </div>
+        <CreateMeetingForm />
+      </header>
 
-      <div className="relative mx-auto max-w-6xl space-y-7">
-        <nav className="flex items-center justify-between rounded-2xl border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl sm:px-5" aria-label="Primary navigation">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
-              <Mic2 className="h-5 w-5" aria-hidden="true" />
-            </span>
+      <section
+        className="grid grid-cols-2 border-b border-[#e5e7eb] sm:grid-cols-4"
+        aria-label="Meeting summary"
+      >
+        {summary.map(({ label, value, icon: Icon }, index) => (
+          <div
+            key={label}
+            className={`flex min-h-24 items-center gap-3 py-5 ${
+              index % 2 === 0 ? 'pr-4' : 'border-l border-[#e5e7eb] pl-4'
+            } sm:border-l sm:px-5 sm:first:border-l-0 sm:first:pl-0`}
+          >
+            <Icon
+              className="h-4 w-4 shrink-0 text-[#4f46e5]"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
             <div>
-              <p className="text-sm font-bold tracking-tight text-slate-950">Meeting Intelligence</p>
-              <p className="hidden text-xs text-slate-500 sm:block">Your AI-powered workspace</p>
+              <p className="font-mono text-2xl font-medium tracking-[-0.03em] text-[#111827]">
+                {value}
+              </p>
+              <p className="mt-1 text-xs font-medium text-[#6b7280]">{label}</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
-            Workspace ready
-          </span>
-        </nav>
+        ))}
+      </section>
 
-        <header className="flex flex-col justify-between gap-5 pt-2 sm:flex-row sm:items-end">
-          <div className="max-w-2xl">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white/70 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Meeting workspace
-            </p>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Meetings</h1>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-              Capture conversations, follow processing progress, and turn every meeting into useful intelligence.
-            </p>
-          </div>
-          <CreateMeetingForm />
-        </header>
-
-        <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="Meeting summary">
-          {[
-            { label: 'Total meetings', value: meetings.length, icon: CalendarDays, tone: 'bg-indigo-50 text-indigo-600' },
-            { label: 'In progress', value: activeCount, icon: Activity, tone: 'bg-amber-50 text-amber-600' },
-            { label: 'Completed', value: completedCount, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
-          ].map(({ label, value, icon: Icon, tone }) => (
-            <div key={label} className="flex items-center gap-4 rounded-2xl border border-slate-200/70 bg-white/80 p-4 shadow-sm backdrop-blur-xl">
-              <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${tone}`}><Icon className="h-5 w-5" aria-hidden="true" /></span>
-              <div><p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p><p className="text-sm text-slate-500">{label}</p></div>
+      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
+        <section
+          className="min-w-0 rounded-lg border border-[#e5e7eb] bg-white"
+          aria-labelledby="meeting-library-title"
+        >
+          <div className="grid gap-4 border-b border-[#e5e7eb] p-4 sm:grid-cols-[1fr_minmax(240px,320px)] sm:items-center sm:p-5">
+            <div>
+              <h2
+                id="meeting-library-title"
+                className="text-lg font-semibold tracking-[-0.02em] text-[#111827]"
+              >
+                Meeting library
+              </h2>
+              <p className="mt-1 text-sm text-[#6b7280]">
+                {meetings.length === 1
+                  ? '1 meeting in this workspace'
+                  : `${meetings.length} meetings in this workspace`}
+              </p>
             </div>
-          ))}
-        </section>
-
-        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-soft">
-          <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:p-6">
-            <div><h2 className="font-bold text-slate-950">All meetings</h2><p className="mt-1 text-sm text-slate-500">Review and manage your meeting library.</p></div>
-            <label className="relative block w-full sm:max-w-xs">
+            <label className="relative block w-full">
               <span className="sr-only">Search meetings</span>
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search meetings…" className="min-h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-100" />
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search meetings"
+                className="min-h-11 w-full rounded-lg border border-[#d1d5db] bg-[#f9fafb] pl-10 pr-4 text-sm text-[#111827] outline-none transition duration-200 placeholder:text-[#6b7280] hover:border-[#9ca3af] focus:border-[#4f46e5] focus:bg-white focus:ring-4 focus:ring-[#e0e7ff]"
+              />
             </label>
           </div>
 
-          <div className="p-4 sm:p-6">
-
-        {meetingsQuery.isPending ? (
-          <div className="space-y-3" aria-label="Loading meetings">
-            {[1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-slate-100" />)}
-          </div>
-        ) : meetingsQuery.isError ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700" role="alert">
-            {getApiErrorMessage(meetingsQuery.error, 'Unable to load meetings.')}
-          </div>
-        ) : meetings.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-indigo-200 bg-gradient-to-br from-indigo-50/80 to-white px-6 py-14 text-center">
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-indigo-600 shadow-sm"><Mic2 className="h-6 w-6" aria-hidden="true" /></span>
-            <h2 className="mt-5 text-lg font-bold text-slate-900">Your meeting library is ready</h2>
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">Create your first meeting to begin organizing conversations and generating insights.</p>
-          </div>
-        ) : filteredMeetings.length === 0 ? (
-          <div className="py-14 text-center"><Search className="mx-auto h-7 w-7 text-slate-300" aria-hidden="true" /><h2 className="mt-4 font-bold text-slate-800">No matching meetings</h2><p className="mt-1 text-sm text-slate-500">Try a different search term.</p></div>
-        ) : (
-          <section className="grid gap-4" aria-label="Meeting list">
-            {filteredMeetings.map((meeting) => (
-              <MeetingCard key={meeting.id} meeting={meeting} />
-            ))}
-          </section>
-        )}
+          <div className="p-3 sm:p-4">
+            {meetingsQuery.isPending ? (
+              <div className="space-y-2" aria-label="Loading meetings">
+                {[1, 2, 3, 4].map((item) => (
+                  <div key={item} className="h-[88px] animate-pulse rounded-lg bg-[#f3f4f6]" />
+                ))}
+              </div>
+            ) : meetingsQuery.isError ? (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800"
+                role="alert"
+              >
+                <div className="flex items-start gap-3">
+                  <TriangleAlert
+                    className="mt-0.5 h-5 w-5 shrink-0"
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="font-semibold">Meeting library unavailable</p>
+                    <p className="mt-1 leading-6">
+                      {getApiErrorMessage(
+                        meetingsQuery.error,
+                        'Check the API connection and try again.',
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : meetings.length === 0 ? (
+              <div className="grid min-h-80 place-items-center rounded-lg bg-[#f9fafb] px-6 py-14 text-center">
+                <div>
+                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-[#c7d2fe] bg-[#eef2ff] text-[#4f46e5]">
+                    <AudioLines className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
+                  </span>
+                  <h2 className="mt-5 text-lg font-semibold tracking-[-0.02em] text-[#111827]">
+                    Start with one conversation
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#4b5563]">
+                    Create a meeting first. You can attach a private recording from its detail page.
+                  </p>
+                </div>
+              </div>
+            ) : filteredMeetings.length === 0 ? (
+              <div className="grid min-h-64 place-items-center px-6 py-12 text-center">
+                <div>
+                  <Search
+                    className="mx-auto h-6 w-6 text-[#9ca3af]"
+                    strokeWidth={1.8}
+                    aria-hidden="true"
+                  />
+                  <h2 className="mt-4 font-semibold text-[#111827]">No matching meetings</h2>
+                  <p className="mt-1 text-sm text-[#6b7280]">
+                    Try a shorter or different meeting title.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1" role="list" aria-label="Meeting list">
+                {filteredMeetings.map((meeting, index) => (
+                  <MeetingCard key={meeting.id} meeting={meeting} index={index + 1} />
+                ))}
+              </div>
+            )}
           </div>
         </section>
+
+        <aside className="lg:sticky lg:top-6" aria-label="Workspace status">
+          <section
+            className="rounded-lg border border-[#e5e7eb] bg-white p-5"
+            aria-labelledby="pipeline-title"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="pipeline-title" className="text-sm font-semibold text-[#111827]">
+                Processing overview
+              </h2>
+              {failedCount > 0 ? (
+                <span className="font-mono text-xs font-semibold text-red-700">
+                  {failedCount} failed
+                </span>
+              ) : null}
+            </div>
+            <dl className="mt-4 space-y-3">
+              {[
+                ['Ready to process', uploadedCount],
+                ['In progress', activeCount],
+                ['Completed', completedCount],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-between gap-4 border-t border-[#e5e7eb] pt-3 first:border-t-0 first:pt-0"
+                >
+                  <dt className="text-sm text-[#4b5563]">{label}</dt>
+                  <dd className="font-mono text-sm font-semibold text-[#111827]">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </aside>
       </div>
-    </main>
+    </div>
   );
 }

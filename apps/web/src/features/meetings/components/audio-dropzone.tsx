@@ -6,7 +6,7 @@ import {
   DEFAULT_MAX_AUDIO_FILE_SIZE_MB,
   requestAudioUploadSchema,
 } from '@meeting-intelligence/schemas';
-import { FileAudio, UploadCloud, X } from 'lucide-react';
+import { AudioLines, FileAudio, Upload, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { type FileRejection, useDropzone } from 'react-dropzone';
 
@@ -64,16 +64,16 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
   if (selectedFile) {
     const extension = selectedFile.name.split('.').pop()?.toUpperCase();
     return (
-      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-5">
+      <div className="rounded-lg border border-[#c7d2fe] bg-[#eef2ff] p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-indigo-600 shadow-sm">
-              <FileAudio className="h-5 w-5" aria-hidden="true" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#4f46e5]">
+              <FileAudio className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{selectedFile.name}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                {formatFileSize(selectedFile.size)} · {extension}
+              <p className="truncate text-sm font-semibold text-[#111827]">{selectedFile.name}</p>
+              <p className="mt-1 font-mono text-xs text-[#4b5563]">
+                {formatFileSize(selectedFile.size)} / {extension}
               </p>
             </div>
           </div>
@@ -81,10 +81,10 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
             type="button"
             onClick={() => onSelect(null)}
             disabled={disabled}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-slate-700 disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-white hover:text-[#111827] active:translate-y-px disabled:opacity-50"
             aria-label="Remove selected recording"
           >
-            <X className="h-4 w-4" aria-hidden="true" />
+            <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -95,24 +95,34 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
     <div>
       <div
         {...getRootProps()}
-        className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center transition focus:outline-none focus:ring-4 focus:ring-indigo-100 ${
+        className={`cursor-pointer rounded-lg border border-dashed p-5 transition duration-200 focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] sm:p-6 ${
           isDragActive
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-slate-200 bg-slate-50/70 hover:border-indigo-300 hover:bg-indigo-50/40'
+            ? 'border-[#4f46e5] bg-[#eef2ff]'
+            : 'border-[#c7cbd4] bg-[#f9fafb] hover:border-[#818cf8] hover:bg-[#f5f6ff]'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       >
         <input {...getInputProps()} />
-        <UploadCloud className="mx-auto h-7 w-7 text-indigo-600" aria-hidden="true" />
-        <p className="mt-3 text-sm font-semibold text-slate-900">
-          {isDragActive ? 'Drop the recording here' : 'Upload meeting recording'}
-        </p>
-        <p className="mt-1 text-sm text-slate-500">Drop MP3, WAV, or M4A here, or browse files</p>
-        <p className="mt-3 text-xs font-medium text-slate-400">
-          Maximum {DEFAULT_MAX_AUDIO_FILE_SIZE_MB} MB · one file
-        </p>
+        <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#c7d2fe] bg-white text-[#4f46e5]">
+            {isDragActive ? (
+              <Upload className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+            ) : (
+              <AudioLines className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-[#111827]">
+              {isDragActive ? 'Drop the recording here' : 'Drop a recording here or browse files'}
+            </p>
+            <p className="mt-1 text-sm text-[#4b5563]">Choose one MP3, WAV, or M4A audio file.</p>
+          </div>
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280] sm:text-right">
+            Up to {DEFAULT_MAX_AUDIO_FILE_SIZE_MB} MB
+          </span>
+        </div>
       </div>
       {error ? (
-        <p className="mt-2 text-sm font-medium text-red-600" role="alert">
+        <p className="mt-2 text-sm font-medium text-red-700" role="alert">
           {error}
         </p>
       ) : null}

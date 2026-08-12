@@ -1,11 +1,11 @@
 'use client';
 
-import { ArrowLeft, CalendarDays, FileAudio } from 'lucide-react';
+import { ArrowLeft, CalendarDays, FileAudio, HardDrive, ShieldCheck, TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeeting } from '../hooks/use-meetings';
-import { MeetingStatusBadge } from './meeting-status-badge';
 import { AudioRecording } from './audio-recording';
+import { MeetingStatusBadge } from './meeting-status-badge';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -15,17 +15,40 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   minute: '2-digit',
 });
 
+const recordingRequirements = [
+  { label: 'Accepted formats', value: 'MP3, WAV, M4A', Icon: FileAudio },
+  { label: 'Maximum size', value: '50 MB', Icon: HardDrive },
+  { label: 'Storage', value: 'Private bucket', Icon: ShieldCheck },
+];
+
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meetingQuery = useMeeting(id);
 
   if (meetingQuery.isPending) {
-    return <p className="text-zinc-500">Loading meeting…</p>;
+    return (
+      <div className="space-y-4" aria-label="Loading meeting">
+        <div className="h-6 w-36 animate-pulse rounded-lg bg-[#e5e7eb]" />
+        <div className="h-40 animate-pulse rounded-lg bg-white" />
+        <div className="h-72 animate-pulse rounded-lg bg-white" />
+      </div>
+    );
   }
 
   if (meetingQuery.isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700" role="alert">
-        {getApiErrorMessage(meetingQuery.error, 'Unable to load the meeting.')}
+      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800" role="alert">
+        <div className="flex items-start gap-3">
+          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+          <div>
+            <p className="font-semibold">Meeting unavailable</p>
+            <p className="mt-1 text-sm leading-6">
+              {getApiErrorMessage(
+                meetingQuery.error,
+                'Return to the meeting library and try again.',
+              )}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -33,38 +56,81 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meeting = meetingQuery.data;
 
   return (
-    <div className="space-y-6">
+    <div>
       <Link
         href="/"
-        className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-950"
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-[#4b5563] transition hover:text-[#111827]"
       >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to meetings
+        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        Meeting library
       </Link>
-      <article className="rounded-xl border bg-white p-6 shadow-sm">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{meeting.title}</h1>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <MeetingStatusBadge status={meeting.status} />
-              <span className="inline-flex items-center gap-1.5 text-sm text-zinc-500">
-                <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                Created {dateFormatter.format(new Date(meeting.createdAt))}
-              </span>
-            </div>
+
+      <header className="mt-4 border-b border-[#e5e7eb] pb-7">
+        <div className="min-w-0">
+          <h1 className="break-words text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.06] tracking-[-0.035em] text-[#111827]">
+            {meeting.title}
+          </h1>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <MeetingStatusBadge status={meeting.status} />
+            <span className="inline-flex items-center gap-1.5 text-sm text-[#6b7280]">
+              <CalendarDays className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+              Created {dateFormatter.format(new Date(meeting.createdAt))}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-sm text-[#4b5563]">
+              <ShieldCheck className="h-4 w-4 text-[#4f46e5]" strokeWidth={1.8} aria-hidden="true" />
+              Private recording
+            </span>
           </div>
         </div>
-        <div className="mt-8 border-t border-slate-100 pt-6">
-          <div className="mb-4 flex items-center gap-2 text-slate-800">
-            <FileAudio className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+      </header>
+
+      <section
+        className="mt-7 overflow-hidden rounded-lg border border-[#e5e7eb] bg-white"
+        aria-labelledby="recording-title"
+      >
+        <div className="p-5 sm:p-7">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#eef2ff] text-[#4f46e5]">
+              <FileAudio className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+            </span>
             <div>
-              <h2 className="font-semibold">Recording</h2>
-              <p className="text-sm text-slate-500">Private audio for this meeting</p>
+              <h2
+                id="recording-title"
+                className="text-lg font-semibold tracking-[-0.02em] text-[#111827]"
+              >
+                Recording
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-[#6b7280]">
+                One private source file for this meeting.
+              </p>
             </div>
           </div>
-          <AudioRecording meeting={meeting} />
+
+          <dl
+            className="mt-6 grid border-y border-[#e5e7eb] sm:grid-cols-3 sm:divide-x sm:divide-[#e5e7eb]"
+            aria-label="Recording requirements"
+          >
+            {recordingRequirements.map(({ label, value, Icon }) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 border-t border-[#e5e7eb] py-4 first:border-t-0 sm:border-t-0 sm:px-5 sm:first:pl-0 sm:last:pr-0"
+              >
+                <Icon className="h-4 w-4 shrink-0 text-[#4f46e5]" strokeWidth={1.8} aria-hidden="true" />
+                <div>
+                  <dt className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
+                    {label}
+                  </dt>
+                  <dd className="mt-1 text-sm font-medium text-[#111827]">{value}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+
+          <div className="mt-6">
+            <AudioRecording meeting={meeting} />
+          </div>
         </div>
-      </article>
+      </section>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { AppShell } from '@/features/meetings/components/app-shell';
 import { MeetingDetails } from '@/features/meetings/components/meeting-details';
 
 type MeetingDetailsPageProps = {
@@ -8,10 +9,10 @@ export default async function MeetingDetailsPage({ params }: MeetingDetailsPageP
   const { id } = await params;
 
   return (
-    <main className="min-h-screen bg-zinc-50 px-6 py-12">
-      <div className="mx-auto max-w-4xl">
+    <AppShell>
+      <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
         <MeetingDetails id={id} />
       </div>
-    </main>
+    </AppShell>
   );
 }

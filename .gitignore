@@ -27,3 +27,13 @@ pnpm-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local AI-agent installations
+.agents/skills/
+.codex/
+.cursor/
+.opencode/
+skills-lock.json
+
+# Generated visual QA
+.impeccable/screenshots/

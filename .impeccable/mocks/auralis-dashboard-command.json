@@ -1,0 +1,7 @@
+{
+  "title": "Compact command board",
+  "surface": "apps/web/src/app/page.tsx",
+  "prompt": "Auralis desktop meeting dashboard with a one-line navigation, compact contextual counts, a two-thirds ruled meeting library, and a right column containing a charcoal audio readiness module and restrained processing legend. Cool white canvas, indigo controls, cyan signal traces, Geist-like typography, 8px radii, and no unsupported product claims.",
+  "approved": true,
+  "approval": "Delegated implementation choice based on the user-pinned Auralis brief and current repository capabilities. Selected for strongest task clarity and easiest removal of mock-only data."
+}

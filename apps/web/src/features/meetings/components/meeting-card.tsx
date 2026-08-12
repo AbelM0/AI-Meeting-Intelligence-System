@@ -1,7 +1,7 @@
 'use client';
 
 import type { Meeting } from '@meeting-intelligence/types';
-import { ArrowUpRight, CalendarDays, Clock3, Mic2, Trash2 } from 'lucide-react';
+import { ArrowUpRight, CalendarDays, Clock3, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useDeleteMeeting } from '../hooks/use-meetings';
@@ -13,7 +13,7 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   day: 'numeric',
 });
 
-export function MeetingCard({ meeting }: Readonly<{ meeting: Meeting }>) {
+export function MeetingCard({ meeting, index }: Readonly<{ meeting: Meeting; index: number }>) {
   const deleteMutation = useDeleteMeeting();
 
   function handleDelete() {
@@ -25,48 +25,62 @@ export function MeetingCard({ meeting }: Readonly<{ meeting: Meeting }>) {
   }
 
   return (
-    <article className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-soft">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 gap-4">
-          <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 sm:flex">
-            <Mic2 className="h-5 w-5" aria-hidden="true" />
+    <article
+      className="group rounded-lg border border-transparent transition duration-200 hover:border-[#dfe2ea] hover:bg-[#f9fafb] focus-within:border-[#c7d2fe] focus-within:bg-[#f9fafb]"
+      role="listitem"
+    >
+      <div className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-4">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+          <span className="hidden w-7 shrink-0 font-mono text-xs font-medium text-[#9ca3af] sm:block">
+            {String(index).padStart(2, '0')}
           </span>
-          <div className="min-w-0 space-y-3">
-          <Link
-            href={`/meetings/${meeting.id}`}
-            className="flex items-center gap-2 truncate text-base font-bold text-slate-900 transition hover:text-indigo-700"
-          >
-            <span className="truncate">{meeting.title}</span>
-            <ArrowUpRight className="h-4 w-4 shrink-0 opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
-          </Link>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4" aria-hidden="true" />
-              {dateFormatter.format(new Date(meeting.createdAt))}
-            </span>
-            {meeting.duration ? (
+          <div className="min-w-0">
+            <Link
+              href={`/meetings/${meeting.id}`}
+              className="inline-flex max-w-full items-center gap-2 rounded-md text-sm font-semibold text-[#111827] transition-colors hover:text-[#4338ca]"
+            >
+              <span className="truncate">{meeting.title}</span>
+              <ArrowUpRight
+                className="h-3.5 w-3.5 shrink-0 text-[#6b7280] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
+                strokeWidth={1.8}
+                aria-hidden="true"
+              />
+            </Link>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6b7280]">
               <span className="inline-flex items-center gap-1.5">
-                <Clock3 className="h-4 w-4" aria-hidden="true" />
-                {Math.round(meeting.duration / 60)} min
+                <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                {dateFormatter.format(new Date(meeting.createdAt))}
               </span>
-            ) : null}
-            <MeetingStatusBadge status={meeting.status} />
-          </div>
+              {meeting.duration ? (
+                <span className="inline-flex items-center gap-1.5 font-mono">
+                  <Clock3 className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                  {Math.round(meeting.duration / 60)} min
+                </span>
+              ) : (
+                <span className="font-mono text-[#9ca3af]">No duration</span>
+              )}
+            </div>
           </div>
         </div>
+
+        <MeetingStatusBadge status={meeting.status} />
+
         <button
           type="button"
           onClick={handleDelete}
           disabled={deleteMutation.isPending}
-          className="rounded-xl p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-4 focus:ring-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-[#9ca3af] transition duration-200 hover:bg-red-50 hover:text-red-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={`Delete ${meeting.title}`}
         >
-          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          <Trash2 className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
         </button>
       </div>
       {deleteMutation.isError ? (
-        <p className="mt-3 text-sm text-red-600" role="alert">
-          {getApiErrorMessage(deleteMutation.error, 'Unable to delete the meeting.')}
+        <p
+          className="mx-3 mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 sm:mx-4"
+          role="alert"
+        >
+          {getApiErrorMessage(deleteMutation.error, 'Unable to delete the meeting. Try again.')}
         </p>
       ) : null}
     </article>

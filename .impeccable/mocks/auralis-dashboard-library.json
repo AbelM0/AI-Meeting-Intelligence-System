@@ -1,0 +1,6 @@
+{
+  "title": "Library-led asymmetric workspace",
+  "surface": "apps/web/src/app/page.tsx",
+  "prompt": "Auralis desktop meeting dashboard with a single-line top navigation, compact summary rail, large searchable meeting library, and a smaller charcoal audio-signal readiness panel. Cool white canvas, indigo controls, cyan signal traces, Geist-like typography, 8px radii, and no invented transcripts or insights.",
+  "approved": false
+}
