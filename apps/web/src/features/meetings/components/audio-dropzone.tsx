@@ -6,7 +6,7 @@ import {
   DEFAULT_MAX_AUDIO_FILE_SIZE_MB,
   requestAudioUploadSchema,
 } from '@meeting-intelligence/schemas';
-import { AudioLines, FileAudio, Upload, X } from 'lucide-react';
+import { FileAudioIcon, UploadSimpleIcon, WaveformIcon, XIcon } from '@phosphor-icons/react';
 import { useCallback, useState } from 'react';
 import { type FileRejection, useDropzone } from 'react-dropzone';
 
@@ -68,7 +68,7 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#4f46e5]">
-              <FileAudio className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <FileAudioIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#111827]">{selectedFile.name}</p>
@@ -84,7 +84,7 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
             className="flex h-11 w-11 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-white hover:text-[#111827] active:translate-y-px disabled:opacity-50"
             aria-label="Remove selected recording"
           >
-            <X className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+            <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -105,9 +105,9 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#c7d2fe] bg-white text-[#4f46e5]">
             {isDragActive ? (
-              <Upload className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <UploadSimpleIcon className="h-5 w-5" weight="bold" aria-hidden="true" />
             ) : (
-              <AudioLines className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <WaveformIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             )}
           </span>
           <div className="min-w-0 flex-1">

@@ -68,6 +68,7 @@ Use flat color fields and low-contrast ambient radial light only. No purple-blue
 - **Inputs:** label above, cool-white inset surface, indigo focus border and visible focus ring, error message below.
 - **Meeting rows:** title and creation time lead; status and duration remain scannable; destructive action stays visually quiet until hover or focus.
 - **Status chips:** semantic color is restrained to text, border, and a light fill. Animated indicators appear only for genuinely active processing states.
+- **Icons:** use `@phosphor-icons/react` exclusively. Use `regular` for metadata, `bold` for compact actions, and `duotone` inside branded or semantic icon containers. Import server-rendered icons from the package's `/ssr` entry point.
 - **Audio dropzone:** light inset upload bay with a dashed hairline, supported formats, and a clear selected-file state.
 - **Loading:** skeletons match the final row geometry. No circular loading spinner for page content.
 - **Empty:** show the workflow and a direct creation action, not only a generic icon and message.

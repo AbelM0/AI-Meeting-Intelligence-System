@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createMeetingSchema, type CreateMeetingInput } from '@meeting-intelligence/schemas';
-import { CalendarPlus, Plus, X } from 'lucide-react';
+import { CalendarPlusIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -50,7 +50,7 @@ export function CreateMeetingForm() {
         onClick={() => setIsOpen(true)}
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-5 py-2.5 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff]"
       >
-        <Plus className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        <PlusIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
         New meeting
       </button>
     );
@@ -74,7 +74,7 @@ export function CreateMeetingForm() {
         <div className="mb-7 flex items-start justify-between gap-4">
           <div className="flex gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#c7d2fe] bg-[#eef2ff] text-[#4f46e5]">
-              <CalendarPlus className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <CalendarPlusIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div>
               <h2
@@ -95,7 +95,7 @@ export function CreateMeetingForm() {
             className="flex h-11 w-11 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
             aria-label="Close create meeting form"
           >
-            <X className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+            <XIcon className="h-5 w-5" weight="bold" aria-hidden="true" />
           </button>
         </div>
         <label htmlFor="meeting-title" className="mb-2 block text-sm font-semibold text-[#374151]">

@@ -1,7 +1,12 @@
 'use client';
 
 import type { Meeting } from '@meeting-intelligence/types';
-import { CheckCircle2, LoaderCircle, RefreshCw, Upload } from 'lucide-react';
+import {
+  ArrowsClockwiseIcon,
+  CheckCircleIcon,
+  SpinnerGapIcon,
+  UploadSimpleIcon,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useAudioUpload } from '../hooks/use-meetings';
@@ -29,7 +34,7 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
-              <CheckCircle2 className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <CheckCircleIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#111827]">
@@ -45,7 +50,7 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
             onClick={() => setIsReplacing(true)}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-emerald-100"
           >
-            <RefreshCw className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+            <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
             Replace recording
           </button>
         </div>
@@ -66,7 +71,11 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
     <div className="space-y-4">
       {isReplacing ? (
         <div className="flex items-start gap-3 rounded-lg bg-[#f3f4f6] p-4">
-          <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-[#4f46e5]" strokeWidth={1.8} aria-hidden="true" />
+          <ArrowsClockwiseIcon
+            className="mt-0.5 h-4 w-4 shrink-0 text-[#4f46e5]"
+            weight="bold"
+            aria-hidden="true"
+          />
           <div>
             <p className="text-sm font-semibold text-[#111827]">Choose a replacement file</p>
             <p className="mt-1 text-sm leading-6 text-[#4b5563]">
@@ -124,9 +133,9 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition duration-200 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#6b7280] disabled:opacity-100"
         >
           {uploadMutation.isPending ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={1.8} aria-hidden="true" />
+            <SpinnerGapIcon className="h-4 w-4 animate-spin" weight="bold" aria-hidden="true" />
           ) : (
-            <Upload className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+            <UploadSimpleIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
           )}
           {actionLabel}
         </button>

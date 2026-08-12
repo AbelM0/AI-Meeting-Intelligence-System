@@ -1,7 +1,7 @@
 'use client';
 
 import type { Meeting } from '@meeting-intelligence/types';
-import { ArrowUpRight, CalendarDays, Clock3, Trash2 } from 'lucide-react';
+import { ArrowUpRightIcon, CalendarBlankIcon, ClockIcon, TrashIcon } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useDeleteMeeting } from '../hooks/use-meetings';
@@ -40,20 +40,20 @@ export function MeetingCard({ meeting, index }: Readonly<{ meeting: Meeting; ind
               className="inline-flex max-w-full items-center gap-2 rounded-md text-sm font-semibold text-[#111827] transition-colors hover:text-[#4338ca]"
             >
               <span className="truncate">{meeting.title}</span>
-              <ArrowUpRight
+              <ArrowUpRightIcon
                 className="h-3.5 w-3.5 shrink-0 text-[#6b7280] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                strokeWidth={1.8}
+                weight="bold"
                 aria-hidden="true"
               />
             </Link>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6b7280]">
               <span className="inline-flex items-center gap-1.5">
-                <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                <CalendarBlankIcon className="h-3.5 w-3.5" weight="regular" aria-hidden="true" />
                 {dateFormatter.format(new Date(meeting.createdAt))}
               </span>
               {meeting.duration ? (
                 <span className="inline-flex items-center gap-1.5 font-mono">
-                  <Clock3 className="h-3.5 w-3.5" strokeWidth={1.8} aria-hidden="true" />
+                  <ClockIcon className="h-3.5 w-3.5" weight="regular" aria-hidden="true" />
                   {Math.round(meeting.duration / 60)} min
                 </span>
               ) : (
@@ -72,7 +72,7 @@ export function MeetingCard({ meeting, index }: Readonly<{ meeting: Meeting; ind
           className="flex h-11 w-11 items-center justify-center rounded-lg text-[#9ca3af] transition duration-200 hover:bg-red-50 hover:text-red-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={`Delete ${meeting.title}`}
         >
-          <Trash2 className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+          <TrashIcon className="h-4 w-4" weight="regular" aria-hidden="true" />
         </button>
       </div>
       {deleteMutation.isError ? (

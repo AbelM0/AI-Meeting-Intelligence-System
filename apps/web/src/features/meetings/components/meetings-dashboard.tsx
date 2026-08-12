@@ -1,14 +1,14 @@
 'use client';
 
 import {
-  Activity,
-  AudioLines,
-  CheckCircle2,
-  FileAudio2,
-  Search,
-  ShieldCheck,
-  TriangleAlert,
-} from 'lucide-react';
+  CheckCircleIcon,
+  FileAudioIcon,
+  MagnifyingGlassIcon,
+  PulseIcon,
+  ShieldCheckIcon,
+  WarningIcon,
+  WaveformIcon,
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeetings } from '../hooks/use-meetings';
@@ -33,10 +33,10 @@ export function MeetingsDashboard() {
   const failedCount = meetings.filter((meeting) => meeting.status === 'FAILED').length;
 
   const summary = [
-    { label: 'Total', value: meetings.length, icon: FileAudio2 },
-    { label: 'Ready', value: uploadedCount, icon: ShieldCheck },
-    { label: 'Processing', value: activeCount, icon: Activity },
-    { label: 'Completed', value: completedCount, icon: CheckCircle2 },
+    { label: 'Total', value: meetings.length, icon: FileAudioIcon },
+    { label: 'Ready', value: uploadedCount, icon: ShieldCheckIcon },
+    { label: 'Processing', value: activeCount, icon: PulseIcon },
+    { label: 'Completed', value: completedCount, icon: CheckCircleIcon },
   ];
 
   return (
@@ -66,7 +66,7 @@ export function MeetingsDashboard() {
           >
             <Icon
               className="h-4 w-4 shrink-0 text-[#4f46e5]"
-              strokeWidth={1.8}
+              weight="duotone"
               aria-hidden="true"
             />
             <div>
@@ -100,9 +100,9 @@ export function MeetingsDashboard() {
             </div>
             <label className="relative block w-full">
               <span className="sr-only">Search meetings</span>
-              <Search
+              <MagnifyingGlassIcon
                 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]"
-                strokeWidth={1.8}
+                weight="bold"
                 aria-hidden="true"
               />
               <input
@@ -127,9 +127,9 @@ export function MeetingsDashboard() {
                 role="alert"
               >
                 <div className="flex items-start gap-3">
-                  <TriangleAlert
+                  <WarningIcon
                     className="mt-0.5 h-5 w-5 shrink-0"
-                    strokeWidth={1.8}
+                    weight="duotone"
                     aria-hidden="true"
                   />
                   <div>
@@ -147,7 +147,7 @@ export function MeetingsDashboard() {
               <div className="grid min-h-80 place-items-center rounded-lg bg-[#f9fafb] px-6 py-14 text-center">
                 <div>
                   <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-[#c7d2fe] bg-[#eef2ff] text-[#4f46e5]">
-                    <AudioLines className="h-6 w-6" strokeWidth={1.8} aria-hidden="true" />
+                    <WaveformIcon className="h-6 w-6" weight="duotone" aria-hidden="true" />
                   </span>
                   <h2 className="mt-5 text-lg font-semibold tracking-[-0.02em] text-[#111827]">
                     Start with one conversation
@@ -160,9 +160,9 @@ export function MeetingsDashboard() {
             ) : filteredMeetings.length === 0 ? (
               <div className="grid min-h-64 place-items-center px-6 py-12 text-center">
                 <div>
-                  <Search
+                  <MagnifyingGlassIcon
                     className="mx-auto h-6 w-6 text-[#9ca3af]"
-                    strokeWidth={1.8}
+                    weight="regular"
                     aria-hidden="true"
                   />
                   <h2 className="mt-4 font-semibold text-[#111827]">No matching meetings</h2>

@@ -1,6 +1,13 @@
 'use client';
 
-import { ArrowLeft, CalendarDays, FileAudio, HardDrive, ShieldCheck, TriangleAlert } from 'lucide-react';
+import {
+  ArrowLeftIcon,
+  CalendarBlankIcon,
+  FileAudioIcon,
+  HardDriveIcon,
+  ShieldCheckIcon,
+  WarningIcon,
+} from '@phosphor-icons/react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeeting } from '../hooks/use-meetings';
@@ -16,9 +23,9 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
 });
 
 const recordingRequirements = [
-  { label: 'Accepted formats', value: 'MP3, WAV, M4A', Icon: FileAudio },
-  { label: 'Maximum size', value: '50 MB', Icon: HardDrive },
-  { label: 'Storage', value: 'Private bucket', Icon: ShieldCheck },
+  { label: 'Accepted formats', value: 'MP3, WAV, M4A', Icon: FileAudioIcon },
+  { label: 'Maximum size', value: '50 MB', Icon: HardDriveIcon },
+  { label: 'Storage', value: 'Private bucket', Icon: ShieldCheckIcon },
 ];
 
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
@@ -38,7 +45,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
     return (
       <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800" role="alert">
         <div className="flex items-start gap-3">
-          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" strokeWidth={1.8} aria-hidden="true" />
+          <WarningIcon className="mt-0.5 h-5 w-5 shrink-0" weight="duotone" aria-hidden="true" />
           <div>
             <p className="font-semibold">Meeting unavailable</p>
             <p className="mt-1 text-sm leading-6">
@@ -61,7 +68,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         href="/"
         className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-[#4b5563] transition hover:text-[#111827]"
       >
-        <ArrowLeft className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+        <ArrowLeftIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
         Meeting library
       </Link>
 
@@ -73,11 +80,11 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <MeetingStatusBadge status={meeting.status} />
             <span className="inline-flex items-center gap-1.5 text-sm text-[#6b7280]">
-              <CalendarDays className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" />
+              <CalendarBlankIcon className="h-4 w-4" weight="regular" aria-hidden="true" />
               Created {dateFormatter.format(new Date(meeting.createdAt))}
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-[#4b5563]">
-              <ShieldCheck className="h-4 w-4 text-[#4f46e5]" strokeWidth={1.8} aria-hidden="true" />
+              <ShieldCheckIcon className="h-4 w-4 text-[#4f46e5]" weight="duotone" aria-hidden="true" />
               Private recording
             </span>
           </div>
@@ -91,7 +98,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         <div className="p-5 sm:p-7">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#eef2ff] text-[#4f46e5]">
-              <FileAudio className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
+              <FileAudioIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div>
               <h2
@@ -115,7 +122,11 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
                 key={label}
                 className="flex items-center gap-3 border-t border-[#e5e7eb] py-4 first:border-t-0 sm:border-t-0 sm:px-5 sm:first:pl-0 sm:last:pr-0"
               >
-                <Icon className="h-4 w-4 shrink-0 text-[#4f46e5]" strokeWidth={1.8} aria-hidden="true" />
+                <Icon
+                  className="h-4 w-4 shrink-0 text-[#4f46e5]"
+                  weight="duotone"
+                  aria-hidden="true"
+                />
                 <div>
                   <dt className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
                     {label}
