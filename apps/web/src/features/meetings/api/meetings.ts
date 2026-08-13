@@ -3,7 +3,12 @@ import type {
   CreateMeetingInput,
   RequestAudioUploadInput,
 } from '@meeting-intelligence/schemas';
-import type { AudioUploadAuthorization, Meeting } from '@meeting-intelligence/types';
+import type {
+  AudioUploadAuthorization,
+  Meeting,
+  MeetingProcessResponse,
+  MeetingStatusResponse,
+} from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
 
 export async function createMeeting(input: CreateMeetingInput): Promise<Meeting> {
@@ -41,5 +46,20 @@ export async function confirmAudioUpload(
   input: ConfirmAudioUploadInput,
 ): Promise<Meeting> {
   const { data } = await apiClient.post<Meeting>(`/meetings/${meetingId}/audio/confirm`, input);
+  return data;
+}
+
+export async function processMeeting(meetingId: string): Promise<MeetingProcessResponse> {
+  const { data } = await apiClient.post<MeetingProcessResponse>(`/meetings/${meetingId}/process`);
+  return data;
+}
+
+export async function retryMeeting(meetingId: string): Promise<MeetingProcessResponse> {
+  const { data } = await apiClient.post<MeetingProcessResponse>(`/meetings/${meetingId}/retry`);
+  return data;
+}
+
+export async function getMeetingStatus(meetingId: string): Promise<MeetingStatusResponse> {
+  const { data } = await apiClient.get<MeetingStatusResponse>(`/meetings/${meetingId}/status`);
   return data;
 }

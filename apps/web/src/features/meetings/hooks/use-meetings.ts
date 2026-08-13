@@ -2,14 +2,18 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AudioUploadAuthorization, Meeting } from '@meeting-intelligence/types';
+import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
 import { useCallback, useRef, useState } from 'react';
 import {
   confirmAudioUpload,
   createMeeting,
   deleteMeeting,
   getMeeting,
+  getMeetingStatus,
   getMeetings,
+  processMeeting,
   requestAudioUpload,
+  retryMeeting,
 } from '../api/meetings';
 import {
   uploadMeetingAudio,
@@ -20,7 +24,15 @@ import {
 export const meetingQueryKeys = {
   all: ['meetings'] as const,
   detail: (id: string) => ['meetings', id] as const,
+  status: (id: string) => ['meetings', id, 'status'] as const,
 };
+
+const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
+  'QUEUED',
+  'PREPROCESSING',
+  'TRANSCRIBING',
+  'ANALYZING',
+];
 
 export function useMeetings() {
   return useQuery({
@@ -35,6 +47,41 @@ export function useMeeting(id: string) {
     queryFn: () => getMeeting(id),
     enabled: Boolean(id),
   });
+}
+
+export function useMeetingStatus(id: string) {
+  return useQuery({
+    queryKey: meetingQueryKeys.status(id),
+    queryFn: () => getMeetingStatus(id),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return status && ACTIVE_PROCESSING_STATUSES.includes(status) ? 2_000 : false;
+    },
+  });
+}
+
+function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: action,
+    onSuccess: async (_, meetingId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.status(meetingId) }),
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
+      ]);
+    },
+  });
+}
+
+export function useProcessMeeting() {
+  return useProcessingMutation(processMeeting);
+}
+
+export function useRetryMeeting() {
+  return useProcessingMutation(retryMeeting);
 }
 
 export function useCreateMeeting() {

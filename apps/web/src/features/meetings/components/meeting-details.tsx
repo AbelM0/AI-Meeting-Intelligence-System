@@ -10,9 +10,10 @@ import {
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
-import { useMeeting } from '../hooks/use-meetings';
+import { useMeeting, useMeetingStatus } from '../hooks/use-meetings';
 import { AudioRecording } from './audio-recording';
 import { MeetingStatusBadge } from './meeting-status-badge';
+import { MeetingProcessing } from './meeting-processing';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -30,6 +31,7 @@ const recordingRequirements = [
 
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meetingQuery = useMeeting(id);
+  const statusQuery = useMeetingStatus(id);
 
   if (meetingQuery.isPending) {
     return (
@@ -61,6 +63,10 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   }
 
   const meeting = meetingQuery.data;
+  const currentMeeting = {
+    ...meeting,
+    status: statusQuery.data?.status ?? meeting.status,
+  };
 
   return (
     <div>
@@ -78,13 +84,17 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
             {meeting.title}
           </h1>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <MeetingStatusBadge status={meeting.status} />
+            <MeetingStatusBadge status={currentMeeting.status} />
             <span className="inline-flex items-center gap-1.5 text-sm text-[#6b7280]">
               <CalendarBlankIcon className="h-4 w-4" weight="regular" aria-hidden="true" />
               Created {dateFormatter.format(new Date(meeting.createdAt))}
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-[#4b5563]">
-              <ShieldCheckIcon className="h-4 w-4 text-[#4f46e5]" weight="duotone" aria-hidden="true" />
+              <ShieldCheckIcon
+                className="h-4 w-4 text-[#4f46e5]"
+                weight="duotone"
+                aria-hidden="true"
+              />
               Private recording
             </span>
           </div>
@@ -138,10 +148,11 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           </dl>
 
           <div className="mt-6">
-            <AudioRecording meeting={meeting} />
+            <AudioRecording meeting={currentMeeting} />
           </div>
         </div>
       </section>
+      <MeetingProcessing meeting={currentMeeting} />
     </div>
   );
 }

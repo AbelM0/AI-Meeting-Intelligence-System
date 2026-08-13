@@ -19,6 +19,9 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
   const [isReplacing, setIsReplacing] = useState(false);
   const uploadMutation = useAudioUpload(meeting.id);
   const hasRecording = Boolean(meeting.audioPath && meeting.audioFileName && meeting.fileSize);
+  const processingLocked = ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'].includes(
+    meeting.status,
+  );
 
   function upload() {
     if (!selectedFile || uploadMutation.isPending) return;
@@ -58,10 +61,11 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
           <button
             type="button"
             onClick={() => setIsReplacing(true)}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-emerald-100"
+            disabled={processingLocked}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
           >
             <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
-            Replace recording
+            {processingLocked ? 'Processing recording' : 'Replace recording'}
           </button>
         </div>
       </div>

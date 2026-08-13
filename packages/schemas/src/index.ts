@@ -18,12 +18,15 @@ export const meetingStatusSchema = z.enum([
   'FAILED',
 ]);
 
+export const processingJobStatusSchema = z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']);
+
 export const createMeetingSchema = z.object({
   title: z.string().trim().min(1, 'Meeting title is required.').max(200),
 });
 
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
 export type MeetingStatusValue = z.infer<typeof meetingStatusSchema>;
+export type ProcessingJobStatusValue = z.infer<typeof processingJobStatusSchema>;
 
 export const DEFAULT_MAX_AUDIO_FILE_SIZE_MB = 50;
 export const BYTES_PER_MEGABYTE = 1024 * 1024;

@@ -18,7 +18,11 @@ import {
   type CreateMeetingInput,
   type RequestAudioUploadInput,
 } from '@meeting-intelligence/schemas';
-import type { AudioUploadAuthorization } from '@meeting-intelligence/types';
+import type {
+  AudioUploadAuthorization,
+  MeetingProcessResponse,
+  MeetingStatusResponse,
+} from '@meeting-intelligence/types';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
 
@@ -41,6 +45,29 @@ export class MeetingsController {
   @Get(':id')
   findOne(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<MeetingRecord> {
     return this.meetingsService.findOne(id);
+  }
+
+  @Get(':id/status')
+  getStatus(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingStatusResponse> {
+    return this.meetingsService.getStatus(id);
+  }
+
+  @Post(':id/process')
+  @HttpCode(HttpStatus.ACCEPTED)
+  process(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingProcessResponse> {
+    return this.meetingsService.process(id);
+  }
+
+  @Post(':id/retry')
+  @HttpCode(HttpStatus.ACCEPTED)
+  retry(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingProcessResponse> {
+    return this.meetingsService.retry(id);
   }
 
   @Post(':id/audio/upload-url')

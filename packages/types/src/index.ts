@@ -1,4 +1,4 @@
-import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
+import type { MeetingStatusValue, ProcessingJobStatusValue } from '@meeting-intelligence/schemas';
 
 export type WorkspaceInfo = {
   name: string;
@@ -26,4 +26,24 @@ export type AudioUploadAuthorization = {
   bucket: string;
   path: string;
   token: string;
+};
+
+export type MeetingProcessResponse = {
+  meetingId: string;
+  status: Extract<MeetingStatusValue, 'QUEUED'>;
+};
+
+export type MeetingProcessingStatus = {
+  status: ProcessingJobStatusValue;
+  progress: number;
+  currentStage: string | null;
+  error: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type MeetingStatusResponse = {
+  meetingId: string;
+  status: MeetingStatusValue;
+  processing: MeetingProcessingStatus | null;
 };

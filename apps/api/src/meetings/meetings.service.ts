@@ -1,6 +1,18 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, type MeetingRecord } from '@meeting-intelligence/database';
+import {
+  MeetingStatus,
+  Prisma,
+  ProcessingJobStatus,
+  type MeetingRecord,
+} from '@meeting-intelligence/database';
 import {
   BYTES_PER_MEGABYTE,
   createConfirmAudioUploadSchema,
@@ -11,9 +23,14 @@ import {
   type CreateMeetingInput,
   type RequestAudioUploadInput,
 } from '@meeting-intelligence/schemas';
-import type { AudioUploadAuthorization } from '@meeting-intelligence/types';
+import type {
+  AudioUploadAuthorization,
+  MeetingProcessResponse,
+  MeetingStatusResponse,
+} from '@meeting-intelligence/types';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
+import { MeetingQueueService } from '../jobs/meeting-queue.service';
 import { StorageService } from '../storage/storage.service';
 
 @Injectable()
@@ -24,6 +41,7 @@ export class MeetingsService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly config: ConfigService,
+    private readonly meetingQueue: MeetingQueueService,
   ) {}
 
   create(input: CreateMeetingInput): Promise<MeetingRecord> {
@@ -44,6 +62,50 @@ export class MeetingsService {
     }
 
     return meeting;
+  }
+
+  async getStatus(id: string): Promise<MeetingStatusResponse> {
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        processingJob: {
+          select: {
+            status: true,
+            progress: true,
+            currentStage: true,
+            error: true,
+            startedAt: true,
+            completedAt: true,
+          },
+        },
+      },
+    });
+
+    if (!meeting) throw new NotFoundException('Meeting not found.');
+
+    return {
+      meetingId: meeting.id,
+      status: meeting.status,
+      processing: meeting.processingJob
+        ? {
+            ...meeting.processingJob,
+            startedAt: meeting.processingJob.startedAt?.toISOString() ?? null,
+            completedAt: meeting.processingJob.completedAt?.toISOString() ?? null,
+          }
+        : null,
+    };
+  }
+
+  async process(id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(id, false);
+    return this.enqueuePreparedMeeting(id);
+  }
+
+  async retry(id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(id, true);
+    return this.enqueuePreparedMeeting(id);
   }
 
   async createAudioUpload(
@@ -80,16 +142,20 @@ export class MeetingsService {
     let updatedMeeting: MeetingRecord;
 
     try {
-      updatedMeeting = await this.prisma.meeting.update({
-        where: { id },
-        data: {
-          audioPath: metadata.audioPath,
-          audioFileName: metadata.fileName,
-          audioMimeType: metadata.mimeType,
-          fileSize: metadata.fileSize,
-          duration: null,
-        },
-      });
+      [updatedMeeting] = await this.prisma.$transaction([
+        this.prisma.meeting.update({
+          where: { id },
+          data: {
+            audioPath: metadata.audioPath,
+            audioFileName: metadata.fileName,
+            audioMimeType: metadata.mimeType,
+            fileSize: metadata.fileSize,
+            duration: null,
+            status: MeetingStatus.UPLOADED,
+          },
+        }),
+        this.prisma.processingJob.deleteMany({ where: { meetingId: id } }),
+      ]);
     } catch (error) {
       await this.removeOrphanedObject(metadata.audioPath);
       throw error;
@@ -180,5 +246,104 @@ export class MeetingsService {
         error instanceof Error ? error.stack : undefined,
       );
     }
+  }
+
+  private async prepareProcessing(id: string, retry: boolean): Promise<void> {
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { id },
+      include: { processingJob: true },
+    });
+
+    if (!meeting) throw new NotFoundException('Meeting not found.');
+    if (!meeting.audioPath) {
+      throw new BadRequestException('Upload a recording before processing this meeting.');
+    }
+
+    const activeMeetingStatuses: MeetingStatus[] = [
+      MeetingStatus.QUEUED,
+      MeetingStatus.PREPROCESSING,
+      MeetingStatus.TRANSCRIBING,
+      MeetingStatus.ANALYZING,
+    ];
+    const activeJob =
+      meeting.processingJob?.status === ProcessingJobStatus.PENDING ||
+      meeting.processingJob?.status === ProcessingJobStatus.PROCESSING;
+
+    if (activeMeetingStatuses.includes(meeting.status) || activeJob) {
+      throw new ConflictException('This meeting is already being processed.');
+    }
+
+    if (retry && meeting.status !== MeetingStatus.FAILED) {
+      throw new ConflictException('Only a failed meeting can be retried.');
+    }
+
+    if (!retry && meeting.status !== MeetingStatus.UPLOADED) {
+      throw new ConflictException(
+        meeting.status === MeetingStatus.FAILED
+          ? 'This meeting failed previously. Use retry to process it again.'
+          : 'This meeting is not ready to be processed.',
+      );
+    }
+
+    const expectedStatus = retry ? MeetingStatus.FAILED : MeetingStatus.UPLOADED;
+    await this.prisma.$transaction(async (transaction) => {
+      const updated = await transaction.meeting.updateMany({
+        where: { id, status: expectedStatus },
+        data: { status: MeetingStatus.QUEUED },
+      });
+
+      if (updated.count !== 1) {
+        throw new ConflictException(
+          'This meeting processing state changed. Refresh and try again.',
+        );
+      }
+
+      await transaction.processingJob.upsert({
+        where: { meetingId: id },
+        create: {
+          meetingId: id,
+          status: ProcessingJobStatus.PENDING,
+          progress: 0,
+          currentStage: MeetingStatus.QUEUED,
+        },
+        update: {
+          status: ProcessingJobStatus.PENDING,
+          progress: 0,
+          currentStage: MeetingStatus.QUEUED,
+          error: null,
+          startedAt: null,
+          completedAt: null,
+        },
+      });
+    });
+  }
+
+  private async enqueuePreparedMeeting(id: string): Promise<MeetingProcessResponse> {
+    try {
+      await this.meetingQueue.enqueue(id);
+    } catch (error) {
+      this.logger.error(
+        `Meeting ${id} was prepared but could not be added to Redis.`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      await this.prisma.$transaction([
+        this.prisma.meeting.updateMany({
+          where: { id, status: MeetingStatus.QUEUED },
+          data: { status: MeetingStatus.FAILED },
+        }),
+        this.prisma.processingJob.updateMany({
+          where: { meetingId: id, status: ProcessingJobStatus.PENDING },
+          data: {
+            status: ProcessingJobStatus.FAILED,
+            error: 'Processing could not be queued. Retry when the service is available.',
+          },
+        }),
+      ]);
+      throw new ServiceUnavailableException(
+        'Processing is temporarily unavailable. Please retry shortly.',
+      );
+    }
+
+    return { meetingId: id, status: MeetingStatus.QUEUED };
   }
 }

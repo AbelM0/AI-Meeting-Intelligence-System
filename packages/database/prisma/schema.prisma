@@ -17,6 +17,13 @@ enum MeetingStatus {
   FAILED
 }
 
+enum ProcessingJobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model Meeting {
   id            String         @id @default(uuid()) @db.Uuid
   title         String
@@ -33,14 +40,15 @@ model Meeting {
 }
 
 model ProcessingJob {
-  id           String    @id @default(uuid()) @db.Uuid
-  meetingId    String    @unique @db.Uuid
-  progress     Int       @default(0)
+  id           String              @id @default(uuid()) @db.Uuid
+  meetingId    String              @unique @db.Uuid
+  status       ProcessingJobStatus @default(PENDING)
+  progress     Int                 @default(0)
   currentStage String?
   error        String?
   startedAt    DateTime?
   completedAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  meeting      Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  meeting      Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 }
