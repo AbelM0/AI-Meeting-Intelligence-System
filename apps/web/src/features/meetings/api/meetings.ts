@@ -5,6 +5,8 @@ import type {
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
+  ActionItem,
+  MeetingIntelligence,
   Meeting,
   MeetingProcessResponse,
   MeetingStatusResponse,
@@ -67,5 +69,18 @@ export async function getMeetingStatus(meetingId: string): Promise<MeetingStatus
 
 export async function getMeetingTranscript(meetingId: string): Promise<Transcript> {
   const { data } = await apiClient.get<Transcript>(`/meetings/${meetingId}/transcript`);
+  return data;
+}
+
+export async function getMeetingIntelligence(meetingId: string): Promise<MeetingIntelligence> {
+  const { data } = await apiClient.get<MeetingIntelligence>(`/meetings/${meetingId}/intelligence`);
+  return data;
+}
+
+export async function updateActionItemStatus(
+  actionItemId: string,
+  status: ActionItem['status'],
+): Promise<ActionItem> {
+  const { data } = await apiClient.patch<ActionItem>(`/action-items/${actionItemId}`, { status });
   return data;
 }

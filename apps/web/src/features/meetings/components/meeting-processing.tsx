@@ -20,7 +20,8 @@ const steps = [
   { label: 'Preparing audio' },
   { label: 'Creating transcript' },
   { label: 'Analyzing discussion' },
-  { label: 'Extracting decisions' },
+  { label: 'Finding decisions' },
+  { label: 'Extracting action items' },
 ] as const;
 
 function ProcessingStep({
@@ -66,16 +67,21 @@ function getStepState(
   processing: MeetingProcessingStatus | null,
 ): 'complete' | 'current' | 'pending' | 'failed' {
   if (index === 0) return 'complete';
-  if (processing?.status === 'COMPLETED') return index < 4 ? 'complete' : 'pending';
+  if (processing?.status === 'COMPLETED') return 'complete';
 
   const stageIndex =
     processing?.currentStage === 'TRANSCRIBING'
       ? 2
-      : processing?.currentStage === 'ANALYZING'
+      : processing?.currentStage === 'ANALYZING_SUMMARY'
         ? 3
-        : processing?.currentStage === 'COMPLETED'
+        : processing?.currentStage === 'FINDING_DECISIONS'
           ? 4
-          : 1;
+          : processing?.currentStage === 'EXTRACTING_ACTION_ITEMS'
+            ? 5
+            : processing?.currentStage === 'PERSISTING_INTELLIGENCE' ||
+                processing?.currentStage === 'COMPLETED'
+              ? 6
+              : 1;
 
   if (index < stageIndex) return 'complete';
   if (index > stageIndex) return 'pending';
@@ -108,13 +114,17 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
                 id="processing-title"
                 className="text-xl font-semibold tracking-[-0.02em] text-[#111827]"
               >
-                {status === 'COMPLETED' ? 'Transcript ready' : 'Understanding your meeting'}
+                {status === 'COMPLETED'
+                  ? 'Meeting intelligence ready'
+                  : status === 'FAILED'
+                    ? 'Meeting analysis failed'
+                    : 'Understanding your meeting'}
               </h2>
               <p className="mt-1 max-w-[65ch] text-sm leading-6 text-[#6b7280]">
                 {status === 'COMPLETED'
-                  ? 'Your timestamped transcript is ready to review.'
+                  ? 'Your summary, decisions, action items, and timestamped transcript are ready to review.'
                   : status === 'FAILED'
-                    ? 'Processing stopped before completion. Your recording is safe.'
+                    ? 'Analysis stopped before completion. Your transcript remains available when it has already been created.'
                     : isActive
                       ? 'You can leave this page. Progress is saved as each stage completes.'
                       : 'Start the processing pipeline when you are ready.'}
@@ -186,7 +196,7 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
                   ? 'Queueing retry…'
                   : 'Queueing meeting…'
                 : status === 'FAILED'
-                  ? 'Retry processing'
+                  ? 'Retry analysis'
                   : 'Process meeting'}
             </button>
           ) : null}

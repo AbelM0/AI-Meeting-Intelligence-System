@@ -9,11 +9,13 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeeting, useMeetingStatus } from '../hooks/use-meetings';
 import { AudioRecording } from './audio-recording';
 import { MeetingStatusBadge } from './meeting-status-badge';
 import { MeetingProcessing } from './meeting-processing';
+import { MeetingOverview } from './meeting-overview';
 import { MeetingTranscript } from './meeting-transcript';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
@@ -33,6 +35,8 @@ const recordingRequirements = [
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meetingQuery = useMeeting(id);
   const statusQuery = useMeetingStatus(id);
+  const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview');
+  const [focusTimestamp, setFocusTimestamp] = useState<number | null>(null);
 
   if (meetingQuery.isPending) {
     return (
@@ -154,11 +158,51 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         </div>
       </section>
       <MeetingProcessing meeting={currentMeeting} />
-      {meeting.audioPath ? (
+      {meeting.audioPath && currentMeeting.status === 'COMPLETED' ? (
+        <section className="mt-10" aria-label="Meeting results">
+          <div className="border-b border-[#e5e7eb]">
+            <div className="flex gap-6" role="tablist" aria-label="Meeting sections">
+              {(['overview', 'transcript'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`min-h-12 border-b-2 px-1 text-sm font-semibold capitalize transition focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] ${
+                    activeTab === tab
+                      ? 'border-[#4f46e5] text-[#111827]'
+                      : 'border-transparent text-[#6b7280] hover:border-[#c7d2fe] hover:text-[#374151]'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+          </div>
+          {activeTab === 'overview' ? (
+            <MeetingOverview
+              meetingId={meeting.id}
+              onViewTranscript={(timestamp) => {
+                setFocusTimestamp(timestamp);
+                setActiveTab('transcript');
+              }}
+            />
+          ) : (
+            <MeetingTranscript
+              meetingId={meeting.id}
+              status={currentMeeting.status}
+              processingError={statusQuery.data?.processing?.error}
+              focusTimestamp={focusTimestamp}
+            />
+          )}
+        </section>
+      ) : meeting.audioPath ? (
         <MeetingTranscript
           meetingId={meeting.id}
           status={currentMeeting.status}
           processingError={statusQuery.data?.processing?.error}
+          focusTimestamp={focusTimestamp}
         />
       ) : null}
     </div>

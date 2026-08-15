@@ -1,4 +1,9 @@
-import type { MeetingStatusValue, ProcessingJobStatusValue } from '@meeting-intelligence/schemas';
+import type {
+  ActionItemPriorityValue,
+  ActionItemStatusValue,
+  MeetingStatusValue,
+  ProcessingJobStatusValue,
+} from '@meeting-intelligence/schemas';
 
 export type WorkspaceInfo = {
   name: string;
@@ -66,3 +71,35 @@ export type Transcript = {
 };
 
 export type TranscriptResponse = Transcript;
+
+export type MeetingSummary = {
+  overview: string;
+  keyTopics: string[];
+  outcomes: string[];
+  unresolvedIssues: string[];
+};
+
+export type Decision = {
+  id: string;
+  decision: string;
+  context: string | null;
+  evidence: string;
+  sourceStartTime: number | null;
+};
+
+export type ActionItem = {
+  id: string;
+  task: string;
+  owner: string | null;
+  dueDate: string | null;
+  priority: ActionItemPriorityValue;
+  status: ActionItemStatusValue;
+  evidence: string;
+  sourceStartTime: number | null;
+};
+
+export type MeetingIntelligence = {
+  summary: MeetingSummary;
+  decisions: Decision[];
+  actionItems: ActionItem[];
+};

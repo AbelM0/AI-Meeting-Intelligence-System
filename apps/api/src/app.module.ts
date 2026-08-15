@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import { HealthController } from './health.controller';
 import { MeetingsModule } from './meetings/meetings.module';
 import { TranscriptionModule } from './transcription/transcription.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { TranscriptionModule } from './transcription/transcription.module';
     }),
     MeetingsModule,
     TranscriptionModule,
+    IntelligenceModule,
   ],
   controllers: [HealthController],
 })

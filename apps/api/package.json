@@ -7,7 +7,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix=false",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/intelligence.service.spec.js"
   },
   "dependencies": {
     "@meeting-intelligence/database": "workspace:*",
@@ -29,6 +30,7 @@
     "dotenv": "^16.4.5",
     "groq-sdk": "^1.5.0",
     "ioredis": "^5.4.0",
+    "openai": "^5.23.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.7.0",

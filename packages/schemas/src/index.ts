@@ -20,6 +20,45 @@ export const meetingStatusSchema = z.enum([
 
 export const processingJobStatusSchema = z.enum(['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED']);
 
+export const meetingSummarySchema = z.object({
+  overview: z.string().trim().min(1),
+  keyTopics: z.array(z.string().trim().min(1)),
+  outcomes: z.array(z.string().trim().min(1)),
+  unresolvedIssues: z.array(z.string().trim().min(1)),
+});
+
+export const decisionSchema = z.object({
+  decision: z.string().trim().min(1),
+  context: z.string().nullable(),
+  evidence: z.string().trim().min(1),
+  sourceStartTime: z.number().nonnegative().nullable(),
+});
+
+export const decisionsSchema = z.object({
+  decisions: z.array(decisionSchema),
+});
+
+export const actionItemPrioritySchema = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']);
+
+export const actionItemStatusSchema = z.enum(['OPEN', 'IN_PROGRESS', 'COMPLETED']);
+
+export const actionItemSchema = z.object({
+  task: z.string().trim().min(1),
+  owner: z.string().trim().min(1).nullable(),
+  dueDate: z.string().trim().min(1).nullable(),
+  priority: actionItemPrioritySchema,
+  evidence: z.string().trim().min(1),
+  sourceStartTime: z.number().nonnegative().nullable(),
+});
+
+export const actionItemsSchema = z.object({
+  actionItems: z.array(actionItemSchema),
+});
+
+export const updateActionItemSchema = z.object({
+  status: actionItemStatusSchema,
+});
+
 export const createMeetingSchema = z.object({
   title: z.string().trim().min(1, 'Meeting title is required.').max(200),
 });
@@ -27,6 +66,14 @@ export const createMeetingSchema = z.object({
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
 export type MeetingStatusValue = z.infer<typeof meetingStatusSchema>;
 export type ProcessingJobStatusValue = z.infer<typeof processingJobStatusSchema>;
+export type MeetingSummaryInput = z.infer<typeof meetingSummarySchema>;
+export type DecisionInput = z.infer<typeof decisionSchema>;
+export type DecisionsInput = z.infer<typeof decisionsSchema>;
+export type ActionItemPriorityValue = z.infer<typeof actionItemPrioritySchema>;
+export type ActionItemStatusValue = z.infer<typeof actionItemStatusSchema>;
+export type ActionItemInput = z.infer<typeof actionItemSchema>;
+export type ActionItemsInput = z.infer<typeof actionItemsSchema>;
+export type UpdateActionItemInput = z.infer<typeof updateActionItemSchema>;
 
 export const DEFAULT_MAX_AUDIO_FILE_SIZE_MB = 50;
 export const BYTES_PER_MEGABYTE = 1024 * 1024;

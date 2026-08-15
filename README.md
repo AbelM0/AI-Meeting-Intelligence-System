@@ -91,29 +91,30 @@ The API loads `apps/api/.env` first and then the root `.env`. For the simplest s
 
 Create a private Supabase Storage bucket named `meeting-audio`. The API checks that this bucket is private before authorizing an upload. The service-role key belongs only in the backend/root environment; never add it to a `NEXT_PUBLIC_` variable.
 
-| Variable                                    | Purpose                                                      |
-| ------------------------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`                              | PostgreSQL/Supabase connection string used by Prisma         |
-| `FRONTEND_URL`                              | Allowed browser origin for API CORS                          |
-| `NEXT_PUBLIC_API_URL`                       | Browser-facing base URL for the REST API                     |
-| `API_PORT`, `WEB_PORT`                      | Host ports published by the Docker Compose services          |
-| `REDIS_HOST`, `REDIS_PORT`                  | Local or hosted Redis connection                             |
-| `REDIS_URL`                                 | Optional Redis URL overriding host and port                  |
-| `PROCESSING_SIMULATION_DELAY_MS`            | Development delay per simulated stage (default 1200)         |
-| `SIMULATE_MEETING_PROCESSING_FAILURE_STAGE` | Development-only failure stage for testing                   |
-| `SUPABASE_URL`                              | Supabase project URL                                         |
-| `SUPABASE_SERVICE_ROLE_KEY`                 | Server-only Supabase administrative key                      |
-| `SUPABASE_AUDIO_BUCKET`                     | Private recording bucket (default `meeting-audio`)           |
-| `MAX_AUDIO_FILE_SIZE_MB`                    | Backend recording size limit (default `50`)                  |
-| `NEXT_PUBLIC_SUPABASE_URL`                  | Browser-safe Supabase project URL                            |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`             | Browser-safe Supabase anonymous key                          |
-| `GROQ_API_KEY`                              | Server-only Groq speech-to-text credential                   |
-| `GROQ_TRANSCRIPTION_MODEL`                  | Groq transcription model (default `whisper-large-v3-turbo`)  |
-| `GROQ_MAX_AUDIO_BYTES`                      | Maximum encoded audio size sent to Groq (default `24000000`) |
-| `TRANSCRIPTION_CHUNK_SECONDS`               | Target duration for large-audio chunks (default `600`)       |
-| `FFMPEG_PATH`                               | FFmpeg executable path (default `ffmpeg`)                    |
-| `FFPROBE_PATH`                              | FFprobe executable path (default `ffprobe`)                  |
-| `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`        | Future DeepSeek integration configuration                    |
+| Variable                         | Purpose                                                      |
+| -------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                   | PostgreSQL/Supabase connection string used by Prisma         |
+| `FRONTEND_URL`                   | Allowed browser origin for API CORS                          |
+| `NEXT_PUBLIC_API_URL`            | Browser-facing base URL for the REST API                     |
+| `API_PORT`, `WEB_PORT`           | Host ports published by the Docker Compose services          |
+| `REDIS_HOST`, `REDIS_PORT`       | Local or hosted Redis connection                             |
+| `REDIS_URL`                      | Optional Redis URL overriding host and port                  |
+| `SUPABASE_URL`                   | Supabase project URL                                         |
+| `SUPABASE_SERVICE_ROLE_KEY`      | Server-only Supabase administrative key                      |
+| `SUPABASE_AUDIO_BUCKET`          | Private recording bucket (default `meeting-audio`)           |
+| `MAX_AUDIO_FILE_SIZE_MB`         | Backend recording size limit (default `50`)                  |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Browser-safe Supabase project URL                            |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser-safe Supabase anonymous key                          |
+| `GROQ_API_KEY`                   | Server-only Groq speech-to-text credential                   |
+| `GROQ_TRANSCRIPTION_MODEL`       | Groq transcription model (default `whisper-large-v3-turbo`)  |
+| `GROQ_MAX_AUDIO_BYTES`           | Maximum encoded audio size sent to Groq (default `24000000`) |
+| `TRANSCRIPTION_CHUNK_SECONDS`    | Target duration for large-audio chunks (default `600`)       |
+| `FFMPEG_PATH`                    | FFmpeg executable path (default `ffmpeg`)                    |
+| `FFPROBE_PATH`                   | FFprobe executable path (default `ffprobe`)                  |
+| `DEEPSEEK_API_KEY`               | Server-only DeepSeek credential                              |
+| `DEEPSEEK_MODEL`                 | Analysis model (default `deepseek-v4-flash`)                 |
+| `DEEPSEEK_BASE_URL`              | DeepSeek-compatible API base URL                             |
+| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS` | Single-pass transcript guard (default `100000`)              |
 
 Never commit real credentials. All `.env*` files except `.env.example` are ignored.
 
@@ -142,8 +143,10 @@ The API exposes the asynchronous processing flow at:
 
 `MeetingsService` atomically changes PostgreSQL state to `QUEUED` and resets the meeting's single `ProcessingJob` before `MeetingQueueService` adds the small `{ meetingId }` payload to the `meeting-processing` queue. Queue jobs use the stable ID `meeting-<uuid>` because BullMQ custom IDs cannot contain colons. Completed or failed Redis entries are removed before an allowed manual retry; active database and Redis states reject duplicate work.
 
-The worker fetches the authoritative meeting and audio metadata from PostgreSQL, prepares the private recording with FFmpeg, transcribes it sequentially through Groq Whisper, persists one timestamped `Transcript` plus its `TranscriptSegment` rows atomically, then runs the existing simulated `ANALYZING` stage. `PREPROCESSING` starts at 10%, real chunk progress maps from 20% to 75%, analysis starts at 80%, and completion is 100%. Each transition updates both the meeting and its `ProcessingJob` transactionally, while BullMQ progress is secondary. Automatic failures retry at most three times with exponential backoff; terminal failures persist a safe error and move both records to `FAILED`. Redis retains up to 100 completed jobs for one hour and 100 failed jobs for one day.
+The worker fetches the authoritative meeting and audio metadata from PostgreSQL, prepares the private recording with FFmpeg, transcribes it sequentially through Groq Whisper, persists one timestamped `Transcript` plus its `TranscriptSegment` rows atomically, then sends a deterministic timestamped transcript representation to the server-side DeepSeek provider for summary, decision, and action-item extraction. Each response is parsed as JSON and validated with the shared Zod schemas before any intelligence is persisted. `PREPROCESSING` starts at 10%, real chunk progress maps from 20% to 75%, analysis stages report 78%, 85%, and 92%, persistence reports 97%, and completion is 100%. Each transition updates both the meeting and its `ProcessingJob` transactionally, while BullMQ progress is secondary. Automatic failures retry at most three times with exponential backoff; terminal failures persist a safe error and move both records to `FAILED`. Redis retains up to 100 completed jobs for one hour and 100 failed jobs for one day.
 
-For a development-only failure check, set `SIMULATE_MEETING_PROCESSING_FAILURE_STAGE=TRANSCRIBING`. This setting is ignored when `NODE_ENV=production`.
+When a retry finds a valid transcript, the worker skips FFmpeg and Groq and resumes at DeepSeek analysis. This preserves the transcript after an analysis failure and avoids unnecessary transcription spend. Intelligence persistence is replacement-based inside one transaction: the summary is upserted and generated decisions/action items are replaced only after all three model outputs pass parsing and validation.
+
+The meeting results API is available at `GET /api/v1/meetings/:id/intelligence`. Action-item status changes use `PATCH /api/v1/action-items/:id` with `{ "status": "OPEN" | "IN_PROGRESS" | "COMPLETED" }`. The web Overview tab reads these durable records after completion; the Transcript tab remains available independently.
 
 PostgreSQL remains the browser-visible source of truth across refreshes and app restarts. BullMQ provides its normal stalled-job and retry recovery, but this local milestone runs the API and worker in the same NestJS process; it does not add separate worker deployment, distributed reconciliation, WebSockets, or AI processing.

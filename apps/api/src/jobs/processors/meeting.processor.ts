@@ -4,6 +4,12 @@ import { MeetingStatus, ProcessingJobStatus } from '@meeting-intelligence/databa
 import { Job, UnrecoverableError } from 'bullmq';
 import { AudioProcessingError } from '../../audio/audio-processing.service';
 import { PrismaService } from '../../database/prisma.service';
+import { IntelligenceService } from '../../intelligence/intelligence.service';
+import {
+  INTELLIGENCE_STAGES,
+  type IntelligenceStage,
+} from '../../intelligence/types/intelligence-result';
+import { DeepSeekProviderError } from '../../intelligence/providers/deepseek.provider';
 import { TranscriptService } from '../../transcript/transcript.service';
 import { TranscriptionProviderError } from '../../transcription/providers/groq-transcription.provider';
 import {
@@ -11,20 +17,22 @@ import {
   type TranscriptionProgress,
 } from '../../transcription/transcription.service';
 import { MEETING_PROCESSING_QUEUE, type MeetingProcessingJobData } from '../jobs.constants';
-import { SimulatedPipelineService } from '../simulated-pipeline.service';
 
 type PipelineStage = {
   meetingStatus: MeetingStatus;
   progress: number;
+  currentStage: string;
 };
 
 const PREPROCESSING_STAGE: PipelineStage = {
   meetingStatus: MeetingStatus.PREPROCESSING,
   progress: 10,
+  currentStage: MeetingStatus.PREPROCESSING,
 };
-const ANALYZING_STAGE: PipelineStage = {
+const PERSISTING_STAGE: PipelineStage = {
   meetingStatus: MeetingStatus.ANALYZING,
-  progress: 80,
+  progress: 97,
+  currentStage: INTELLIGENCE_STAGES.PERSISTING,
 };
 
 @Injectable()
@@ -34,9 +42,9 @@ export class MeetingProcessor extends WorkerHost {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly simulation: SimulatedPipelineService,
     private readonly transcription: TranscriptionService,
     private readonly transcripts: TranscriptService,
+    private readonly intelligence: IntelligenceService,
   ) {
     super();
   }
@@ -47,7 +55,7 @@ export class MeetingProcessor extends WorkerHost {
     try {
       const meeting = await this.prisma.meeting.findUnique({
         where: { id: meetingId },
-        include: { processingJob: true },
+        include: { processingJob: true, transcript: true },
       });
 
       if (!meeting) throw new UnrecoverableError('Meeting no longer exists.');
@@ -72,19 +80,34 @@ export class MeetingProcessor extends WorkerHost {
         },
       });
 
-      await this.persistStage(job, meetingId, PREPROCESSING_STAGE);
-      const transcript = await this.transcription.transcribeMeeting(
-        {
-          meetingId,
-          audioPath: meeting.audioPath,
-          language: meeting.language,
-        },
-        (progress) => this.persistTranscriptionProgress(job, meetingId, progress),
-      );
-      await this.transcripts.replaceTranscript(meetingId, transcript);
+      if (!meeting.transcript) {
+        await this.persistStage(job, meetingId, PREPROCESSING_STAGE);
+        const transcript = await this.transcription.transcribeMeeting(
+          {
+            meetingId,
+            audioPath: meeting.audioPath,
+            language: meeting.language,
+          },
+          (progress) => this.persistTranscriptionProgress(job, meetingId, progress),
+        );
+        await this.transcripts.replaceTranscript(meetingId, transcript);
+      } else {
+        this.logger.log(`Skipping transcription meetingId=${meetingId} reason=transcript_exists`);
+      }
 
-      await this.persistStage(job, meetingId, ANALYZING_STAGE);
-      await this.simulation.pauseAfter(ANALYZING_STAGE.meetingStatus);
+      const transcript = await this.prisma.transcript.findUniqueOrThrow({
+        where: { meetingId },
+        include: { segments: { orderBy: { startTime: 'asc' } } },
+      });
+
+      const intelligence = await this.intelligence.analyzeTranscript(
+        meetingId,
+        transcript,
+        (stage, progress) => this.persistIntelligenceStage(job, meetingId, stage, progress),
+      );
+
+      await this.persistStage(job, meetingId, PERSISTING_STAGE);
+      await this.intelligence.persistIntelligence(meetingId, intelligence);
 
       await this.prisma.$transaction([
         this.prisma.meeting.update({
@@ -133,12 +156,25 @@ export class MeetingProcessor extends WorkerHost {
         data: {
           status: ProcessingJobStatus.PROCESSING,
           progress: stage.progress,
-          currentStage: stage.meetingStatus,
+          currentStage: stage.currentStage,
           error: null,
         },
       }),
     ]);
     await job.updateProgress(stage.progress);
+  }
+
+  private persistIntelligenceStage(
+    job: Job<MeetingProcessingJobData>,
+    meetingId: string,
+    stage: IntelligenceStage,
+    progress: number,
+  ): Promise<void> {
+    return this.persistStage(job, meetingId, {
+      meetingStatus: MeetingStatus.ANALYZING,
+      progress,
+      currentStage: stage,
+    });
   }
 
   private async persistTranscriptionProgress(
@@ -226,12 +262,20 @@ export class MeetingProcessor extends WorkerHost {
     if (error instanceof TranscriptionProviderError && !error.retryable) {
       return new UnrecoverableError(error.message);
     }
+    if (error instanceof DeepSeekProviderError && !error.retryable) {
+      return new UnrecoverableError(error.message);
+    }
     return error instanceof Error ? error : new Error('Meeting processing failed.');
   }
 
   private safeFailureMessage(error: unknown): string {
     if (error instanceof UnrecoverableError) return error.message;
     if (error instanceof TranscriptionProviderError && !error.retryable) return error.message;
-    return "We couldn't transcribe this recording. Please retry processing.";
+    if (error instanceof DeepSeekProviderError) {
+      return error.retryable
+        ? 'We could not finish meeting intelligence. Your transcript is safe. Retry processing.'
+        : error.message;
+    }
+    return "We couldn't finish processing this meeting. Your transcript is safe. Retry processing.";
   }
 }

@@ -24,8 +24,21 @@ enum ProcessingJobStatus {
   FAILED
 }
 
+enum ActionItemPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ActionItemStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+}
+
 model Meeting {
-  id            String         @id @default(uuid()) @db.Uuid
+  id            String          @id @default(uuid()) @db.Uuid
   title         String
   audioPath     String?
   audioFileName String?
@@ -33,11 +46,14 @@ model Meeting {
   fileSize      Int?
   duration      Float?
   language      String?
-  status        MeetingStatus  @default(UPLOADED)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  status        MeetingStatus   @default(UPLOADED)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   processingJob ProcessingJob?
   transcript    Transcript?
+  summary       MeetingSummary?
+  decisions     Decision[]
+  actionItems   ActionItem[]
 }
 
 model ProcessingJob {
@@ -78,4 +94,56 @@ model TranscriptSegment {
 
   @@index([transcriptId])
   @@index([transcriptId, startTime])
+}
+
+model MeetingSummary {
+  id               String   @id @default(uuid()) @db.Uuid
+  meetingId        String   @unique @db.Uuid
+  overview         String
+  keyTopics        Json
+  outcomes         Json
+  unresolvedIssues Json
+  model            String
+  promptVersion    String
+  generatedAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Decision {
+  id              String   @id @default(uuid()) @db.Uuid
+  meetingId       String   @db.Uuid
+  decision        String
+  context         String?
+  evidence        String
+  sourceStartTime Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([meetingId, sourceStartTime])
+}
+
+model ActionItem {
+  id              String             @id @default(uuid()) @db.Uuid
+  meetingId       String             @db.Uuid
+  task            String
+  owner           String?
+  dueDate         String?
+  priority        ActionItemPriority
+  status          ActionItemStatus   @default(OPEN)
+  evidence        String
+  sourceStartTime Float?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId])
+  @@index([meetingId, status])
+  @@index([meetingId, priority])
 }

@@ -163,6 +163,9 @@ export class MeetingsService {
         }),
         this.prisma.processingJob.deleteMany({ where: { meetingId: id } }),
         this.prisma.transcript.deleteMany({ where: { meetingId: id } }),
+        this.prisma.meetingSummary.deleteMany({ where: { meetingId: id } }),
+        this.prisma.decision.deleteMany({ where: { meetingId: id } }),
+        this.prisma.actionItem.deleteMany({ where: { meetingId: id } }),
       ]);
     } catch (error) {
       await this.removeOrphanedObject(metadata.audioPath);

@@ -1,7 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AudioUploadAuthorization, Meeting } from '@meeting-intelligence/types';
+import type {
+  ActionItem,
+  AudioUploadAuthorization,
+  Meeting,
+  MeetingIntelligence,
+} from '@meeting-intelligence/types';
 import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
 import { useCallback, useRef, useState } from 'react';
 import {
@@ -9,12 +14,14 @@ import {
   createMeeting,
   deleteMeeting,
   getMeeting,
+  getMeetingIntelligence,
   getMeetingStatus,
   getMeetingTranscript,
   getMeetings,
   processMeeting,
   requestAudioUpload,
   retryMeeting,
+  updateActionItemStatus,
 } from '../api/meetings';
 import {
   uploadMeetingAudio,
@@ -27,6 +34,7 @@ export const meetingQueryKeys = {
   detail: (id: string) => ['meetings', id] as const,
   status: (id: string) => ['meetings', id, 'status'] as const,
   transcript: (id: string) => ['meetings', id, 'transcript'] as const,
+  intelligence: (id: string) => ['meetings', id, 'intelligence'] as const,
 };
 
 const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
@@ -72,6 +80,15 @@ export function useMeetingTranscript(id: string, enabled = true) {
   });
 }
 
+export function useMeetingIntelligence(id: string, enabled = true) {
+  return useQuery({
+    queryKey: meetingQueryKeys.intelligence(id),
+    queryFn: () => getMeetingIntelligence(id),
+    enabled: Boolean(id) && enabled,
+    retry: false,
+  });
+}
+
 function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) {
   const queryClient = useQueryClient();
 
@@ -83,7 +100,36 @@ function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) 
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.transcript(meetingId) }),
+        queryClient.removeQueries({ queryKey: meetingQueryKeys.intelligence(meetingId) }),
       ]);
+    },
+  });
+}
+
+export function useUpdateActionItemStatus(meetingId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      actionItemId,
+      status,
+    }: {
+      actionItemId: string;
+      status: ActionItem['status'];
+    }) => updateActionItemStatus(actionItemId, status),
+    onSuccess: (updatedActionItem) => {
+      queryClient.setQueryData<MeetingIntelligence>(
+        meetingQueryKeys.intelligence(meetingId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                actionItems: current.actionItems.map((actionItem) =>
+                  actionItem.id === updatedActionItem.id ? updatedActionItem : actionItem,
+                ),
+              }
+            : current,
+      );
     },
   });
 }
@@ -219,6 +265,7 @@ export function useAudioUpload(meetingId: string) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
+        queryClient.removeQueries({ queryKey: meetingQueryKeys.intelligence(meetingId) }),
       ]);
       authorizationRef.current = null;
       fileRef.current = null;

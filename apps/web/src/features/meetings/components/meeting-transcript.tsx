@@ -3,7 +3,7 @@
 import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
 import type { TranscriptSegment } from '@meeting-intelligence/types';
 import { MagnifyingGlassIcon, TextAlignLeftIcon, WarningIcon } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useMeetingTranscript } from '../hooks/use-meetings';
 import { formatTimestamp } from '../utils/format-timestamp';
@@ -49,7 +49,11 @@ function TranscriptRows({
   return (
     <ol className="divide-y divide-[#e5e7eb]" aria-label="Transcript segments">
       {segments.map((segment) => (
-        <li key={segment.id} className="grid gap-2 py-5 sm:grid-cols-[72px_minmax(0,1fr)] sm:gap-6">
+        <li
+          id={`transcript-segment-${segment.id}`}
+          key={segment.id}
+          className="grid gap-2 py-5 sm:grid-cols-[72px_minmax(0,1fr)] sm:gap-6"
+        >
           <time
             className="font-mono text-xs font-semibold tabular-nums text-[#4f46e5]"
             dateTime={`PT${Math.max(0, segment.startTime)}S`}
@@ -69,17 +73,37 @@ export function MeetingTranscript({
   meetingId,
   status,
   processingError,
+  focusTimestamp,
 }: Readonly<{
   meetingId: string;
   status: MeetingStatusValue;
   processingError?: string | null;
+  focusTimestamp?: number | null;
 }>) {
   const isCompleted = status === 'COMPLETED';
-  const transcriptQuery = useMeetingTranscript(meetingId, isCompleted);
+  const transcriptQuery = useMeetingTranscript(meetingId, isCompleted || status === 'FAILED');
   const [search, setSearch] = useState('');
 
   const transcript = transcriptQuery.data;
   const query = search.trim();
+
+  useEffect(() => {
+    if (focusTimestamp === null || focusTimestamp === undefined || !transcript) return;
+
+    const target = transcript.segments.reduce<TranscriptSegment | null>((closest, segment) => {
+      if (!closest) return segment;
+      return Math.abs(segment.startTime - focusTimestamp) <
+        Math.abs(closest.startTime - focusTimestamp)
+        ? segment
+        : closest;
+    }, null);
+
+    if (target) {
+      document
+        .getElementById(`transcript-segment-${target.id}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusTimestamp, transcript]);
   const visibleSegments = useMemo(() => {
     const displaySegments: TranscriptSegment[] = transcript?.segments.length
       ? transcript.segments
@@ -125,7 +149,9 @@ export function MeetingTranscript({
               <p className="mt-1 max-w-[60ch] text-sm leading-6 text-[#6b7280]">
                 {isCompleted
                   ? 'A timestamped record of the conversation, saved with this meeting.'
-                  : 'Your meeting transcript will appear here when processing is complete.'}
+                  : status === 'FAILED'
+                    ? 'The transcript is shown when available, even if meeting intelligence failed.'
+                    : 'Your meeting transcript will appear here when processing is complete.'}
               </p>
             </div>
           </div>
@@ -173,22 +199,6 @@ export function MeetingTranscript({
               ready.
             </p>
           </div>
-        ) : status === 'FAILED' ? (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-red-800" role="alert">
-            <div className="flex items-start gap-3">
-              <WarningIcon
-                className="mt-0.5 h-5 w-5 shrink-0"
-                weight="duotone"
-                aria-hidden="true"
-              />
-              <div>
-                <p className="font-semibold">We could not transcribe this recording.</p>
-                <p className="mt-1 text-sm leading-6">
-                  {processingError ?? 'Use Retry processing above to try again.'}
-                </p>
-              </div>
-            </div>
-          </div>
         ) : transcriptQuery.isPending ? (
           <div className="space-y-5" aria-label="Loading transcript">
             {[1, 2, 3].map((item) => (
@@ -206,19 +216,63 @@ export function MeetingTranscript({
             className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800"
             role="alert"
           >
-            {getApiErrorMessage(
-              transcriptQuery.error,
-              'The transcript could not be loaded. Refresh and try again.',
-            )}
+            <div className="flex items-start gap-3">
+              <WarningIcon
+                className="mt-0.5 h-5 w-5 shrink-0"
+                weight="duotone"
+                aria-hidden="true"
+              />
+              <div>
+                <p className="font-semibold">
+                  {status === 'FAILED'
+                    ? 'The transcript is not available yet.'
+                    : 'The transcript could not be loaded.'}
+                </p>
+                <p className="mt-1 leading-6">
+                  {getApiErrorMessage(
+                    transcriptQuery.error,
+                    processingError ?? 'Refresh and try again.',
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         ) : transcript ? (
-          visibleSegments.length > 0 || !query ? (
-            <TranscriptRows segments={visibleSegments} query={query} />
-          ) : (
-            <p className="rounded-lg bg-[#f9fafb] px-4 py-5 text-sm leading-6 text-[#4b5563]">
-              No transcript segments match “{query}”.
-            </p>
-          )
+          <>
+            {status === 'FAILED' ? (
+              <div
+                className="mb-6 rounded-lg border border-red-200 bg-red-50 p-5 text-red-800"
+                role="alert"
+              >
+                <div className="flex items-start gap-3">
+                  <WarningIcon
+                    className="mt-0.5 h-5 w-5 shrink-0"
+                    weight="duotone"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="font-semibold">Meeting analysis failed</p>
+                    <p className="mt-1 text-sm leading-6">
+                      Your transcript was saved successfully, but meeting intelligence could not be
+                      generated.
+                      {processingError ? ` ${processingError}` : ''}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+            {visibleSegments.length > 0 || !query ? (
+              <TranscriptRows segments={visibleSegments} query={query} />
+            ) : (
+              <p className="rounded-lg bg-[#f9fafb] px-4 py-5 text-sm leading-6 text-[#4b5563]">
+                No transcript segments match “{query}”.
+              </p>
+            )}
+          </>
+        ) : status === 'FAILED' ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-red-800" role="alert">
+            {processingError ?? 'Use Retry analysis above to try again.'}
+          </div>
         ) : null}
       </div>
     </section>
