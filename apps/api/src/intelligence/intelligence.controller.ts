@@ -20,6 +20,6 @@ export class IntelligenceController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body(new ZodValidationPipe(updateActionItemSchema)) input: UpdateActionItemInput,
   ): Promise<ActionItem> {
-    return this.intelligence.updateActionItemStatus(id, input);
+    return this.intelligence.updateActionItem(id, input);
   }
 }

@@ -27,6 +27,13 @@ export type Meeting = {
   updatedAt: string;
 };
 
+export type MeetingListItem = Meeting & {
+  decisionCount: number;
+  actionItemCount: number;
+  speakerCount: number;
+  summaryPreview: string | null;
+};
+
 export type AudioUploadAuthorization = {
   bucket: string;
   path: string;
@@ -95,6 +102,8 @@ export type Decision = {
   context: string | null;
   evidence: string;
   sourceStartTime: number | null;
+  sourceSegmentId: string | null;
+  sourceSegment: EvidenceSourceSegment | null;
 };
 
 export type ActionItem = {
@@ -106,6 +115,14 @@ export type ActionItem = {
   status: ActionItemStatusValue;
   evidence: string;
   sourceStartTime: number | null;
+  sourceSegmentId: string | null;
+  sourceSegment: EvidenceSourceSegment | null;
+};
+
+export type EvidenceSourceSegment = {
+  id: string;
+  startTime: number;
+  endTime: number;
 };
 
 export type MeetingIntelligence = {

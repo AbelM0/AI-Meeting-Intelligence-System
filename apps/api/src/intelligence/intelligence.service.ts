@@ -14,7 +14,6 @@ import {
 } from '@meeting-intelligence/database';
 import {
   actionItemsSchema,
-  actionItemStatusSchema,
   decisionsSchema,
   meetingSummarySchema,
   type UpdateActionItemInput,
@@ -37,6 +36,9 @@ import {
   formatTimestampedTranscript,
   type TimestampedTranscript,
 } from './utils/format-timestamped-transcript';
+import { resolveEvidenceSegment } from './utils/resolve-evidence-segment';
+
+const evidenceSourceSelect = { id: true, startTime: true, endTime: true } as const;
 
 type IntelligenceProgressCallback = (
   stage: IntelligenceStage,
@@ -116,6 +118,18 @@ export class IntelligenceService {
 
   async persistIntelligence(meetingId: string, result: MeetingIntelligenceResult): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
+      const transcript = await transaction.transcript.findUnique({
+        where: { meetingId },
+        select: {
+          duration: true,
+          segments: {
+            orderBy: { startTime: 'asc' },
+            select: evidenceSourceSelect,
+          },
+        },
+      });
+      const duration = transcript?.duration ?? null;
+      const segments = transcript?.segments ?? [];
       await transaction.meetingSummary.upsert({
         where: { meetingId },
         create: {
@@ -142,7 +156,13 @@ export class IntelligenceService {
       await transaction.decision.deleteMany({ where: { meetingId } });
       if (result.decisions.length > 0) {
         await transaction.decision.createMany({
-          data: result.decisions.map((decision) => ({ meetingId, ...decision })),
+          data: result.decisions.map((decision) => ({
+            meetingId,
+            decision: decision.decision,
+            context: decision.context,
+            evidence: decision.evidence,
+            ...resolveEvidenceSegment(segments, decision.sourceStartTime, duration),
+          })),
         });
       }
 
@@ -156,7 +176,7 @@ export class IntelligenceService {
             dueDate: actionItem.dueDate,
             priority: ActionItemPriority[actionItem.priority],
             evidence: actionItem.evidence,
-            sourceStartTime: actionItem.sourceStartTime,
+            ...resolveEvidenceSegment(segments, actionItem.sourceStartTime, duration),
           })),
         });
       }
@@ -168,8 +188,8 @@ export class IntelligenceService {
       where: { id: meetingId },
       select: {
         summary: true,
-        decisions: true,
-        actionItems: true,
+        decisions: { include: { sourceSegment: { select: evidenceSourceSelect } } },
+        actionItems: { include: { sourceSegment: { select: evidenceSourceSelect } } },
       },
     });
 
@@ -199,16 +219,18 @@ export class IntelligenceService {
     };
   }
 
-  async updateActionItemStatus(id: string, input: UpdateActionItemInput): Promise<ActionItem> {
-    const parsed = actionItemStatusSchema.safeParse(input.status);
-    if (!parsed.success) {
-      throw new InternalServerErrorException('Invalid action item status.');
-    }
-
+  async updateActionItem(id: string, input: UpdateActionItemInput): Promise<ActionItem> {
     try {
       const actionItem = await this.prisma.actionItem.update({
         where: { id },
-        data: { status: ActionItemStatus[parsed.data] },
+        data: {
+          ...(input.task !== undefined ? { task: input.task } : {}),
+          ...(input.owner !== undefined ? { owner: input.owner } : {}),
+          ...(input.dueDate !== undefined ? { dueDate: input.dueDate } : {}),
+          ...(input.priority !== undefined ? { priority: ActionItemPriority[input.priority] } : {}),
+          ...(input.status !== undefined ? { status: ActionItemStatus[input.status] } : {}),
+        },
+        include: { sourceSegment: { select: evidenceSourceSelect } },
       });
       return toActionItemResponse(actionItem);
     } catch (error) {
@@ -316,17 +338,27 @@ function compareActionItems(left: ActionItemRecord, right: ActionItemRecord): nu
   return timestampOrder !== 0 ? timestampOrder : left.task.localeCompare(right.task);
 }
 
-function toDecisionResponse(decision: DecisionRecord): Decision {
+type EvidenceLinkedDecision = DecisionRecord & {
+  sourceSegment: { id: string; startTime: number; endTime: number } | null;
+};
+
+type EvidenceLinkedActionItem = ActionItemRecord & {
+  sourceSegment: { id: string; startTime: number; endTime: number } | null;
+};
+
+function toDecisionResponse(decision: EvidenceLinkedDecision): Decision {
   return {
     id: decision.id,
     decision: decision.decision,
     context: decision.context,
     evidence: decision.evidence,
     sourceStartTime: decision.sourceStartTime,
+    sourceSegmentId: decision.sourceSegmentId,
+    sourceSegment: decision.sourceSegment,
   };
 }
 
-function toActionItemResponse(actionItem: ActionItemRecord): ActionItem {
+function toActionItemResponse(actionItem: EvidenceLinkedActionItem): ActionItem {
   return {
     id: actionItem.id,
     task: actionItem.task,
@@ -336,5 +368,7 @@ function toActionItemResponse(actionItem: ActionItemRecord): ActionItem {
     status: actionItem.status,
     evidence: actionItem.evidence,
     sourceStartTime: actionItem.sourceStartTime,
+    sourceSegmentId: actionItem.sourceSegmentId,
+    sourceSegment: actionItem.sourceSegment,
   };
 }

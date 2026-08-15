@@ -9,9 +9,10 @@ import {
   WarningIcon,
 } from '@phosphor-icons/react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
-import { useMeeting, useMeetingStatus } from '../hooks/use-meetings';
+import { useMeeting, useMeetingStatus, useMeetingTranscript } from '../hooks/use-meetings';
+import type { EvidenceTarget } from '../utils/meeting-display';
 import { AudioRecording } from './audio-recording';
 import { MeetingStatusBadge } from './meeting-status-badge';
 import { MeetingProcessing } from './meeting-processing';
@@ -22,8 +23,6 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
   month: 'long',
   day: 'numeric',
-  hour: 'numeric',
-  minute: '2-digit',
 });
 
 const recordingRequirements = [
@@ -35,8 +34,11 @@ const recordingRequirements = [
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meetingQuery = useMeeting(id);
   const statusQuery = useMeetingStatus(id);
+  const currentStatus = statusQuery.data?.status ?? meetingQuery.data?.status;
+  const transcriptQuery = useMeetingTranscript(id, currentStatus === 'COMPLETED');
   const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview');
-  const [focusTimestamp, setFocusTimestamp] = useState<number | null>(null);
+  const [focusTarget, setFocusTarget] = useState<EvidenceTarget | null>(null);
+  const evidenceRequestId = useRef(0);
 
   if (meetingQuery.isPending) {
     return (
@@ -72,6 +74,16 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
     ...meeting,
     status: statusQuery.data?.status ?? meeting.status,
   };
+  const transcript = transcriptQuery.data;
+  const language = transcript?.language ?? meeting.language;
+  const metadata = [
+    dateFormatter.format(new Date(meeting.createdAt)),
+    meeting.duration ? `${Math.round(meeting.duration / 60)} min` : null,
+    language ? language.toLocaleUpperCase() : null,
+    transcript
+      ? `${transcript.speakers.length} ${transcript.speakers.length === 1 ? 'speaker' : 'speakers'}`
+      : null,
+  ].filter(Boolean);
 
   return (
     <div>
@@ -80,7 +92,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-[#4b5563] transition hover:text-[#111827]"
       >
         <ArrowLeftIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
-        Meeting library
+        Meetings
       </Link>
 
       <header className="mt-4 border-b border-[#e5e7eb] pb-7">
@@ -92,7 +104,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
             <MeetingStatusBadge status={currentMeeting.status} />
             <span className="inline-flex items-center gap-1.5 text-sm text-[#6b7280]">
               <CalendarBlankIcon className="h-4 w-4" weight="regular" aria-hidden="true" />
-              Created {dateFormatter.format(new Date(meeting.createdAt))}
+              {metadata.join(' · ')}
             </span>
             <span className="inline-flex items-center gap-1.5 text-sm text-[#4b5563]">
               <ShieldCheckIcon
@@ -167,6 +179,8 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
                   key={tab}
                   type="button"
                   role="tab"
+                  id={`meeting-${tab}-tab`}
+                  aria-controls={`meeting-${tab}-panel`}
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
                   className={`min-h-12 border-b-2 px-1 text-sm font-semibold capitalize transition focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] ${
@@ -183,8 +197,10 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           {activeTab === 'overview' ? (
             <MeetingOverview
               meetingId={meeting.id}
-              onViewTranscript={(timestamp) => {
-                setFocusTimestamp(timestamp);
+              speakers={transcript?.speakers ?? []}
+              onViewTranscript={(target) => {
+                evidenceRequestId.current += 1;
+                setFocusTarget({ ...target, requestId: evidenceRequestId.current });
                 setActiveTab('transcript');
               }}
             />
@@ -193,7 +209,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
               meetingId={meeting.id}
               status={currentMeeting.status}
               processingError={statusQuery.data?.processing?.error}
-              focusTimestamp={focusTimestamp}
+              focusTarget={focusTarget}
             />
           )}
         </section>
@@ -202,7 +218,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           meetingId={meeting.id}
           status={currentMeeting.status}
           processingError={statusQuery.data?.processing?.error}
-          focusTimestamp={focusTimestamp}
+          focusTarget={focusTarget}
         />
       ) : null}
     </div>

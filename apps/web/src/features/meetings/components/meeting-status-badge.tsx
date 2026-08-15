@@ -28,12 +28,12 @@ const statusConfig = {
     active: true,
   },
   COMPLETED: {
-    label: 'Completed',
+    label: 'Ready',
     className: 'border-[#bbf7d0] bg-[#f0fdf4] text-[#047857]',
     active: false,
   },
   FAILED: {
-    label: 'Failed',
+    label: 'Needs attention',
     className: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
     active: false,
   },

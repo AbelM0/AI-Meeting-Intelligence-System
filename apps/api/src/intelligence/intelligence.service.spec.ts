@@ -77,3 +77,47 @@ void test('rejects output that remains invalid after the one repair attempt', as
   );
   assert.deepEqual(provider.calls, ['summary', 'summary']);
 });
+
+void test('persists authoritative action item edits without invoking DeepSeek', async () => {
+  const provider = new StubDeepSeekProvider({});
+  let savedData: unknown;
+  const prisma = {
+    actionItem: {
+      update: ({ data }: { data: unknown }) => {
+        savedData = data;
+        return Promise.resolve({
+          id: 'action-1',
+          meetingId: 'meeting-1',
+          task: 'Fix authentication',
+          owner: null,
+          dueDate: 'Friday',
+          priority: 'HIGH',
+          status: 'COMPLETED',
+          evidence: 'Evidence',
+          sourceStartTime: 28,
+          sourceSegmentId: 'segment-1',
+          sourceSegment: { id: 'segment-1', startTime: 28, endTime: 34 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      },
+    },
+  };
+  const service = new IntelligenceService(prisma as never, provider as never, new ConfigService());
+  const result = await service.updateActionItem('action-1', {
+    task: 'Fix authentication',
+    owner: null,
+    dueDate: 'Friday',
+    priority: 'HIGH',
+    status: 'COMPLETED',
+  });
+  assert.deepEqual(savedData, {
+    task: 'Fix authentication',
+    owner: null,
+    dueDate: 'Friday',
+    priority: 'HIGH',
+    status: 'COMPLETED',
+  });
+  assert.equal(result.status, 'COMPLETED');
+  assert.equal(provider.calls.length, 0);
+});

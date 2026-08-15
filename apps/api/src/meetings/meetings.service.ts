@@ -22,11 +22,14 @@ import {
   type ConfirmAudioUploadInput,
   type CreateMeetingInput,
   type RequestAudioUploadInput,
+  type UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
   MeetingProcessResponse,
   MeetingStatusResponse,
+  MeetingListItem,
+  TranscriptSpeaker,
   TranscriptResponse,
 } from '@meeting-intelligence/types';
 import { randomUUID } from 'node:crypto';
@@ -51,10 +54,24 @@ export class MeetingsService {
     return this.prisma.meeting.create({ data: input });
   }
 
-  findAll(): Promise<MeetingRecord[]> {
-    return this.prisma.meeting.findMany({
+  async findAll(): Promise<MeetingListItem[]> {
+    const meetings = await this.prisma.meeting.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        summary: { select: { overview: true } },
+        _count: { select: { decisions: true, actionItems: true, speakers: true } },
+      },
     });
+
+    return meetings.map(({ _count, summary, ...meeting }) => ({
+      ...meeting,
+      createdAt: meeting.createdAt.toISOString(),
+      updatedAt: meeting.updatedAt.toISOString(),
+      decisionCount: _count.decisions,
+      actionItemCount: _count.actionItems,
+      speakerCount: _count.speakers,
+      summaryPreview: summary?.overview.slice(0, 180) ?? null,
+    }));
   }
 
   async findOne(id: string): Promise<MeetingRecord> {
@@ -103,6 +120,28 @@ export class MeetingsService {
 
   getTranscript(id: string): Promise<TranscriptResponse> {
     return this.transcript.getTranscriptByMeeting(id);
+  }
+
+  async updateSpeaker(
+    meetingId: string,
+    speakerId: string,
+    input: UpdateMeetingSpeakerInput,
+  ): Promise<TranscriptSpeaker> {
+    const speaker = await this.prisma.meetingSpeaker.findFirst({
+      where: { id: speakerId, meetingId },
+    });
+    if (!speaker) throw new NotFoundException('Speaker not found.');
+
+    const updated = await this.prisma.meetingSpeaker.update({
+      where: { id: speakerId },
+      data: { name: input.name },
+    });
+    return {
+      id: updated.id,
+      providerSpeakerId: updated.providerSpeakerId,
+      label: updated.label,
+      name: updated.name,
+    };
   }
 
   async process(id: string): Promise<MeetingProcessResponse> {

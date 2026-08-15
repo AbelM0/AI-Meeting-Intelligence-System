@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix=false",
     "typecheck": "tsc --noEmit",
-    "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/intelligence.service.spec.js",
+    "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/utils/resolve-evidence-segment.spec.js .test-dist/intelligence/intelligence.service.spec.js",
+    "test:meetings": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/meetings/meetings.service.spec.js",
     "test:transcription": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/transcription/providers/deepgram-transcription.provider.spec.js"
   },
   "dependencies": {

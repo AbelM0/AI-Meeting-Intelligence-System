@@ -99,16 +99,18 @@ model MeetingSpeaker {
 }
 
 model TranscriptSegment {
-  id           String          @id @default(uuid()) @db.Uuid
-  transcriptId String          @db.Uuid
-  speakerId    String?         @db.Uuid
-  startTime    Float
-  endTime      Float
-  text         String
-  confidence   Float?
-  createdAt    DateTime        @default(now())
-  transcript   Transcript      @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
-  speaker      MeetingSpeaker? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  id                String          @id @default(uuid()) @db.Uuid
+  transcriptId      String          @db.Uuid
+  speakerId         String?         @db.Uuid
+  startTime         Float
+  endTime           Float
+  text              String
+  confidence        Float?
+  createdAt         DateTime        @default(now())
+  transcript        Transcript      @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  speaker           MeetingSpeaker? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  sourceDecisions   Decision[]      @relation("DecisionSourceSegment")
+  sourceActionItems ActionItem[]    @relation("ActionItemSourceSegment")
 
   @@index([transcriptId])
   @@index([transcriptId, startTime])
@@ -138,13 +140,16 @@ model Decision {
   context         String?
   evidence        String
   sourceStartTime Float?
+  sourceSegmentId String?  @db.Uuid
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meeting       Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceSegment TranscriptSegment? @relation("DecisionSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull)
 
   @@index([meetingId])
   @@index([meetingId, sourceStartTime])
+  @@index([sourceSegmentId])
 }
 
 model ActionItem {
@@ -157,12 +162,15 @@ model ActionItem {
   status          ActionItemStatus   @default(OPEN)
   evidence        String
   sourceStartTime Float?
+  sourceSegmentId String?            @db.Uuid
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  meeting       Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  sourceSegment TranscriptSegment? @relation("ActionItemSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull)
 
   @@index([meetingId])
   @@index([meetingId, status])
   @@index([meetingId, priority])
+  @@index([sourceSegmentId])
 }

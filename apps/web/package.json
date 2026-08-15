@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:meeting-utils": "node --test --experimental-strip-types src/features/meetings/utils/meeting-display.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

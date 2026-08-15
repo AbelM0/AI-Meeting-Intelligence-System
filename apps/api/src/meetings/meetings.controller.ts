@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import type { MeetingRecord } from '@meeting-intelligence/database';
@@ -14,15 +15,19 @@ import {
   confirmAudioUploadSchema,
   createMeetingSchema,
   requestAudioUploadSchema,
+  updateMeetingSpeakerSchema,
   type ConfirmAudioUploadInput,
   type CreateMeetingInput,
   type RequestAudioUploadInput,
+  type UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
   MeetingProcessResponse,
+  MeetingListItem,
   MeetingStatusResponse,
   TranscriptResponse,
+  TranscriptSpeaker,
 } from '@meeting-intelligence/types';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
@@ -39,7 +44,7 @@ export class MeetingsController {
   }
 
   @Get()
-  findAll(): Promise<MeetingRecord[]> {
+  findAll(): Promise<MeetingListItem[]> {
     return this.meetingsService.findAll();
   }
 
@@ -60,6 +65,15 @@ export class MeetingsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<TranscriptResponse> {
     return this.meetingsService.getTranscript(id);
+  }
+
+  @Patch(':meetingId/speakers/:speakerId')
+  updateSpeaker(
+    @Param('meetingId', new ParseUUIDPipe({ version: '4' })) meetingId: string,
+    @Param('speakerId', new ParseUUIDPipe({ version: '4' })) speakerId: string,
+    @Body(new ZodValidationPipe(updateMeetingSpeakerSchema)) input: UpdateMeetingSpeakerInput,
+  ): Promise<TranscriptSpeaker> {
+    return this.meetingsService.updateSpeaker(meetingId, speakerId, input);
   }
 
   @Post(':id/process')

@@ -55,9 +55,24 @@ export const actionItemsSchema = z.object({
   actionItems: z.array(actionItemSchema),
 });
 
-export const updateActionItemSchema = z.object({
-  status: actionItemStatusSchema,
-});
+export const updateActionItemSchema = z
+  .object({
+    task: z.string().trim().min(1, 'Task is required.').max(500).optional(),
+    owner: z.string().trim().min(1, 'Owner cannot be empty.').max(200).nullable().optional(),
+    dueDate: z.string().trim().min(1, 'Due date cannot be empty.').max(100).nullable().optional(),
+    priority: actionItemPrioritySchema.optional(),
+    status: actionItemStatusSchema.optional(),
+  })
+  .strict()
+  .refine((input) => Object.keys(input).length > 0, {
+    message: 'At least one field must be supplied.',
+  });
+
+export const updateMeetingSpeakerSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Speaker name cannot be empty.').max(100).nullable(),
+  })
+  .strict();
 
 export const createMeetingSchema = z.object({
   title: z.string().trim().min(1, 'Meeting title is required.').max(200),
@@ -74,6 +89,7 @@ export type ActionItemStatusValue = z.infer<typeof actionItemStatusSchema>;
 export type ActionItemInput = z.infer<typeof actionItemSchema>;
 export type ActionItemsInput = z.infer<typeof actionItemsSchema>;
 export type UpdateActionItemInput = z.infer<typeof updateActionItemSchema>;
+export type UpdateMeetingSpeakerInput = z.infer<typeof updateMeetingSpeakerSchema>;
 
 export const DEFAULT_MAX_AUDIO_FILE_SIZE_MB = 50;
 export const BYTES_PER_MEGABYTE = 1024 * 1024;

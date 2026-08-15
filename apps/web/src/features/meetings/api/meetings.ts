@@ -2,15 +2,19 @@ import type {
   ConfirmAudioUploadInput,
   CreateMeetingInput,
   RequestAudioUploadInput,
+  UpdateActionItemInput,
+  UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
   ActionItem,
   MeetingIntelligence,
   Meeting,
+  MeetingListItem,
   MeetingProcessResponse,
   MeetingStatusResponse,
   Transcript,
+  TranscriptSpeaker,
 } from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
 
@@ -19,8 +23,8 @@ export async function createMeeting(input: CreateMeetingInput): Promise<Meeting>
   return data;
 }
 
-export async function getMeetings(): Promise<Meeting[]> {
-  const { data } = await apiClient.get<Meeting[]>('/meetings');
+export async function getMeetings(): Promise<MeetingListItem[]> {
+  const { data } = await apiClient.get<MeetingListItem[]>('/meetings');
   return data;
 }
 
@@ -82,5 +86,25 @@ export async function updateActionItemStatus(
   status: ActionItem['status'],
 ): Promise<ActionItem> {
   const { data } = await apiClient.patch<ActionItem>(`/action-items/${actionItemId}`, { status });
+  return data;
+}
+
+export async function updateActionItem(
+  actionItemId: string,
+  input: UpdateActionItemInput,
+): Promise<ActionItem> {
+  const { data } = await apiClient.patch<ActionItem>(`/action-items/${actionItemId}`, input);
+  return data;
+}
+
+export async function updateMeetingSpeaker(
+  meetingId: string,
+  speakerId: string,
+  input: UpdateMeetingSpeakerInput,
+): Promise<TranscriptSpeaker> {
+  const { data } = await apiClient.patch<TranscriptSpeaker>(
+    `/meetings/${meetingId}/speakers/${speakerId}`,
+    input,
+  );
   return data;
 }

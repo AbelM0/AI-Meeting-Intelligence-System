@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ActionItem,
   AudioUploadAuthorization,
-  Meeting,
   MeetingIntelligence,
+  MeetingListItem,
+  Transcript,
 } from '@meeting-intelligence/types';
 import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
 import { useCallback, useRef, useState } from 'react';
@@ -21,7 +22,9 @@ import {
   processMeeting,
   requestAudioUpload,
   retryMeeting,
+  updateActionItem,
   updateActionItemStatus,
+  updateMeetingSpeaker,
 } from '../api/meetings';
 import {
   uploadMeetingAudio,
@@ -117,6 +120,30 @@ export function useUpdateActionItemStatus(meetingId: string) {
       actionItemId: string;
       status: ActionItem['status'];
     }) => updateActionItemStatus(actionItemId, status),
+    onMutate: async ({ actionItemId, status }) => {
+      await queryClient.cancelQueries({ queryKey: meetingQueryKeys.intelligence(meetingId) });
+      const previous = queryClient.getQueryData<MeetingIntelligence>(
+        meetingQueryKeys.intelligence(meetingId),
+      );
+      queryClient.setQueryData<MeetingIntelligence>(
+        meetingQueryKeys.intelligence(meetingId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                actionItems: current.actionItems.map((item) =>
+                  item.id === actionItemId ? { ...item, status } : item,
+                ),
+              }
+            : current,
+      );
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(meetingQueryKeys.intelligence(meetingId), context.previous);
+      }
+    },
     onSuccess: (updatedActionItem) => {
       queryClient.setQueryData<MeetingIntelligence>(
         meetingQueryKeys.intelligence(meetingId),
@@ -129,6 +156,58 @@ export function useUpdateActionItemStatus(meetingId: string) {
                 ),
               }
             : current,
+      );
+    },
+  });
+}
+
+export function useUpdateActionItem(meetingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      actionItemId,
+      input,
+    }: {
+      actionItemId: string;
+      input: Parameters<typeof updateActionItem>[1];
+    }) => updateActionItem(actionItemId, input),
+    onSuccess: (updatedActionItem) => {
+      queryClient.setQueryData<MeetingIntelligence>(
+        meetingQueryKeys.intelligence(meetingId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                actionItems: current.actionItems.map((item) =>
+                  item.id === updatedActionItem.id ? updatedActionItem : item,
+                ),
+              }
+            : current,
+      );
+    },
+  });
+}
+
+export function useUpdateMeetingSpeaker(meetingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ speakerId, name }: { speakerId: string; name: string | null }) =>
+      updateMeetingSpeaker(meetingId, speakerId, { name }),
+    onSuccess: (updatedSpeaker) => {
+      queryClient.setQueryData<Transcript>(meetingQueryKeys.transcript(meetingId), (current) =>
+        current
+          ? {
+              ...current,
+              speakers: current.speakers.map((speaker) =>
+                speaker.id === updatedSpeaker.id ? updatedSpeaker : speaker,
+              ),
+              segments: current.segments.map((segment) =>
+                segment.speaker?.id === updatedSpeaker.id
+                  ? { ...segment, speaker: updatedSpeaker, speakerId: updatedSpeaker.id }
+                  : segment,
+              ),
+            }
+          : current,
       );
     },
   });
@@ -160,7 +239,7 @@ export function useDeleteMeeting() {
   return useMutation({
     mutationFn: deleteMeeting,
     onSuccess: async (_, id) => {
-      queryClient.setQueryData<Meeting[]>(meetingQueryKeys.all, (meetings) =>
+      queryClient.setQueryData<MeetingListItem[]>(meetingQueryKeys.all, (meetings) =>
         meetings?.filter((meeting) => meeting.id !== id),
       );
       queryClient.removeQueries({ queryKey: meetingQueryKeys.detail(id) });

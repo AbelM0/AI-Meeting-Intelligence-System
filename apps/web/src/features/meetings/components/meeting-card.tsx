@@ -1,6 +1,6 @@
 'use client';
 
-import type { Meeting } from '@meeting-intelligence/types';
+import type { MeetingListItem } from '@meeting-intelligence/types';
 import { ArrowUpRightIcon, CalendarBlankIcon, ClockIcon, TrashIcon } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -13,7 +13,10 @@ const dateFormatter = new Intl.DateTimeFormat('en', {
   day: 'numeric',
 });
 
-export function MeetingCard({ meeting, index }: Readonly<{ meeting: Meeting; index: number }>) {
+export function MeetingCard({
+  meeting,
+  index,
+}: Readonly<{ meeting: MeetingListItem; index: number }>) {
   const deleteMutation = useDeleteMeeting();
 
   function handleDelete() {
@@ -60,6 +63,22 @@ export function MeetingCard({ meeting, index }: Readonly<{ meeting: Meeting; ind
                 <span className="font-mono text-[#9ca3af]">No duration</span>
               )}
             </div>
+            {meeting.summaryPreview ? (
+              <p className="mt-2 line-clamp-1 max-w-2xl text-sm text-[#4b5563]">
+                {meeting.summaryPreview}
+              </p>
+            ) : null}
+            {meeting.decisionCount > 0 || meeting.actionItemCount > 0 ? (
+              <p className="mt-2 font-mono text-[11px] font-semibold text-[#4f46e5]">
+                {meeting.decisionCount > 0
+                  ? `${meeting.decisionCount} ${meeting.decisionCount === 1 ? 'decision' : 'decisions'}`
+                  : null}
+                {meeting.decisionCount > 0 && meeting.actionItemCount > 0 ? ' · ' : null}
+                {meeting.actionItemCount > 0
+                  ? `${meeting.actionItemCount} ${meeting.actionItemCount === 1 ? 'action item' : 'action items'}`
+                  : null}
+              </p>
+            ) : null}
           </div>
         </div>
 
