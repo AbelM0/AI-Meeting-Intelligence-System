@@ -8,6 +8,7 @@ import type {
   Meeting,
   MeetingProcessResponse,
   MeetingStatusResponse,
+  Transcript,
 } from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
 
@@ -61,5 +62,10 @@ export async function retryMeeting(meetingId: string): Promise<MeetingProcessRes
 
 export async function getMeetingStatus(meetingId: string): Promise<MeetingStatusResponse> {
   const { data } = await apiClient.get<MeetingStatusResponse>(`/meetings/${meetingId}/status`);
+  return data;
+}
+
+export async function getMeetingTranscript(meetingId: string): Promise<Transcript> {
+  const { data } = await apiClient.get<Transcript>(`/meetings/${meetingId}/transcript`);
   return data;
 }

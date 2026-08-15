@@ -2,7 +2,14 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { MeetingStatus, ProcessingJobStatus } from '@meeting-intelligence/database';
 import { Job, UnrecoverableError } from 'bullmq';
+import { AudioProcessingError } from '../../audio/audio-processing.service';
 import { PrismaService } from '../../database/prisma.service';
+import { TranscriptService } from '../../transcript/transcript.service';
+import { TranscriptionProviderError } from '../../transcription/providers/groq-transcription.provider';
+import {
+  TranscriptionService,
+  type TranscriptionProgress,
+} from '../../transcription/transcription.service';
 import { MEETING_PROCESSING_QUEUE, type MeetingProcessingJobData } from '../jobs.constants';
 import { SimulatedPipelineService } from '../simulated-pipeline.service';
 
@@ -11,11 +18,14 @@ type PipelineStage = {
   progress: number;
 };
 
-const PIPELINE_STAGES: readonly PipelineStage[] = [
-  { meetingStatus: MeetingStatus.PREPROCESSING, progress: 10 },
-  { meetingStatus: MeetingStatus.TRANSCRIBING, progress: 30 },
-  { meetingStatus: MeetingStatus.ANALYZING, progress: 70 },
-];
+const PREPROCESSING_STAGE: PipelineStage = {
+  meetingStatus: MeetingStatus.PREPROCESSING,
+  progress: 10,
+};
+const ANALYZING_STAGE: PipelineStage = {
+  meetingStatus: MeetingStatus.ANALYZING,
+  progress: 80,
+};
 
 @Injectable()
 @Processor(MEETING_PROCESSING_QUEUE, { concurrency: 2 })
@@ -25,6 +35,8 @@ export class MeetingProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly simulation: SimulatedPipelineService,
+    private readonly transcription: TranscriptionService,
+    private readonly transcripts: TranscriptService,
   ) {
     super();
   }
@@ -60,10 +72,19 @@ export class MeetingProcessor extends WorkerHost {
         },
       });
 
-      for (const stage of PIPELINE_STAGES) {
-        await this.persistStage(job, meetingId, stage);
-        await this.simulation.pauseAfter(stage.meetingStatus);
-      }
+      await this.persistStage(job, meetingId, PREPROCESSING_STAGE);
+      const transcript = await this.transcription.transcribeMeeting(
+        {
+          meetingId,
+          audioPath: meeting.audioPath,
+          language: meeting.language,
+        },
+        (progress) => this.persistTranscriptionProgress(job, meetingId, progress),
+      );
+      await this.transcripts.replaceTranscript(meetingId, transcript);
+
+      await this.persistStage(job, meetingId, ANALYZING_STAGE);
+      await this.simulation.pauseAfter(ANALYZING_STAGE.meetingStatus);
 
       await this.prisma.$transaction([
         this.prisma.meeting.update({
@@ -83,8 +104,9 @@ export class MeetingProcessor extends WorkerHost {
       ]);
       await job.updateProgress(100);
     } catch (error) {
-      await this.persistFailure(job, meetingId, error);
-      throw error;
+      const processingError = this.toProcessingError(error);
+      await this.persistFailure(job, meetingId, processingError);
+      throw processingError;
     }
   }
 
@@ -119,6 +141,37 @@ export class MeetingProcessor extends WorkerHost {
     await job.updateProgress(stage.progress);
   }
 
+  private async persistTranscriptionProgress(
+    job: Job<MeetingProcessingJobData>,
+    meetingId: string,
+    progress: TranscriptionProgress,
+  ): Promise<void> {
+    const boundedProgress = Math.min(
+      75,
+      20 +
+        (progress.totalChunks > 0
+          ? Math.round((progress.completedChunks / progress.totalChunks) * 55)
+          : 0),
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.meeting.update({
+        where: { id: meetingId },
+        data: { status: MeetingStatus.TRANSCRIBING },
+      }),
+      this.prisma.processingJob.update({
+        where: { meetingId },
+        data: {
+          status: ProcessingJobStatus.PROCESSING,
+          progress: boundedProgress,
+          currentStage: MeetingStatus.TRANSCRIBING,
+          error: null,
+        },
+      }),
+    ]);
+    await job.updateProgress(boundedProgress);
+  }
+
   private async persistFailure(
     job: Job<MeetingProcessingJobData>,
     meetingId: string,
@@ -141,7 +194,7 @@ export class MeetingProcessor extends WorkerHost {
           where: { meetingId },
           data: {
             status: ProcessingJobStatus.FAILED,
-            error: 'Meeting processing failed. Retry when ready.',
+            error: this.safeFailureMessage(error),
             completedAt: null,
           },
         }),
@@ -158,10 +211,27 @@ export class MeetingProcessor extends WorkerHost {
         where: { meetingId },
         data: {
           status: ProcessingJobStatus.PENDING,
+          progress: 0,
           currentStage: MeetingStatus.QUEUED,
           error: null,
         },
       }),
     ]);
+  }
+
+  private toProcessingError(error: unknown): Error {
+    if (error instanceof AudioProcessingError) {
+      return new UnrecoverableError(error.message);
+    }
+    if (error instanceof TranscriptionProviderError && !error.retryable) {
+      return new UnrecoverableError(error.message);
+    }
+    return error instanceof Error ? error : new Error('Meeting processing failed.');
+  }
+
+  private safeFailureMessage(error: unknown): string {
+    if (error instanceof UnrecoverableError) return error.message;
+    if (error instanceof TranscriptionProviderError && !error.retryable) return error.message;
+    return "We couldn't transcribe this recording. Please retry processing.";
   }
 }

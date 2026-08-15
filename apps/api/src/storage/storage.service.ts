@@ -7,6 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { AudioUploadAuthorization } from '@meeting-intelligence/types';
+import { createWriteStream } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
 export type StoredObjectMetadata = {
   size: number | null;
@@ -53,6 +58,32 @@ export class StorageService {
       size: data.size ?? null,
       contentType: data.contentType ?? null,
     };
+  }
+
+  async downloadObjectToFile(path: string, destinationPath: string): Promise<void> {
+    await this.verifyPrivateBucket();
+    const { data, error } = await this.getClient()
+      .storage.from(this.bucket)
+      .createSignedUrl(path, 60);
+
+    if (error || !data?.signedUrl) {
+      throw new ServiceUnavailableException('Unable to retrieve the private audio recording.');
+    }
+
+    try {
+      const response = await fetch(data.signedUrl);
+      if (!response.ok || !response.body) {
+        throw new Error(`Audio download returned HTTP ${response.status}.`);
+      }
+
+      await pipeline(
+        Readable.fromWeb(response.body as unknown as NodeReadableStream<Uint8Array>),
+        createWriteStream(destinationPath, { flags: 'wx' }),
+      );
+    } catch {
+      await rm(destinationPath, { force: true }).catch(() => undefined);
+      throw new ServiceUnavailableException('Unable to retrieve the private audio recording.');
+    }
   }
 
   async removeObject(path: string): Promise<void> {

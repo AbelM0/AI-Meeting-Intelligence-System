@@ -10,6 +10,7 @@ import {
   deleteMeeting,
   getMeeting,
   getMeetingStatus,
+  getMeetingTranscript,
   getMeetings,
   processMeeting,
   requestAudioUpload,
@@ -25,6 +26,7 @@ export const meetingQueryKeys = {
   all: ['meetings'] as const,
   detail: (id: string) => ['meetings', id] as const,
   status: (id: string) => ['meetings', id, 'status'] as const,
+  transcript: (id: string) => ['meetings', id, 'transcript'] as const,
 };
 
 const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
@@ -61,6 +63,15 @@ export function useMeetingStatus(id: string) {
   });
 }
 
+export function useMeetingTranscript(id: string, enabled = true) {
+  return useQuery({
+    queryKey: meetingQueryKeys.transcript(id),
+    queryFn: () => getMeetingTranscript(id),
+    enabled: Boolean(id) && enabled,
+    retry: false,
+  });
+}
+
 function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) {
   const queryClient = useQueryClient();
 
@@ -71,6 +82,7 @@ function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) 
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.status(meetingId) }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.transcript(meetingId) }),
       ]);
     },
   });

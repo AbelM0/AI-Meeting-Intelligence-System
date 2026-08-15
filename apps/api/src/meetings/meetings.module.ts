@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../database/database.module';
 import { StorageModule } from '../storage/storage.module';
 import { JobsModule } from '../jobs/jobs.module';
+import { TranscriptModule } from '../transcript/transcript.module';
 import { MeetingsController } from './meetings.controller';
 import { MeetingsService } from './meetings.service';
 
 @Module({
-  imports: [DatabaseModule, StorageModule, JobsModule],
+  imports: [DatabaseModule, StorageModule, JobsModule, TranscriptModule],
   controllers: [MeetingsController],
   providers: [MeetingsService],
 })

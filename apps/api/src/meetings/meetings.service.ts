@@ -27,11 +27,13 @@ import type {
   AudioUploadAuthorization,
   MeetingProcessResponse,
   MeetingStatusResponse,
+  TranscriptResponse,
 } from '@meeting-intelligence/types';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../database/prisma.service';
 import { MeetingQueueService } from '../jobs/meeting-queue.service';
 import { StorageService } from '../storage/storage.service';
+import { TranscriptService } from '../transcript/transcript.service';
 
 @Injectable()
 export class MeetingsService {
@@ -42,6 +44,7 @@ export class MeetingsService {
     private readonly storage: StorageService,
     private readonly config: ConfigService,
     private readonly meetingQueue: MeetingQueueService,
+    private readonly transcript: TranscriptService,
   ) {}
 
   create(input: CreateMeetingInput): Promise<MeetingRecord> {
@@ -96,6 +99,10 @@ export class MeetingsService {
           }
         : null,
     };
+  }
+
+  getTranscript(id: string): Promise<TranscriptResponse> {
+    return this.transcript.getTranscriptByMeeting(id);
   }
 
   async process(id: string): Promise<MeetingProcessResponse> {
@@ -155,6 +162,7 @@ export class MeetingsService {
           },
         }),
         this.prisma.processingJob.deleteMany({ where: { meetingId: id } }),
+        this.prisma.transcript.deleteMany({ where: { meetingId: id } }),
       ]);
     } catch (error) {
       await this.removeOrphanedObject(metadata.audioPath);

@@ -47,3 +47,22 @@ export type MeetingStatusResponse = {
   status: MeetingStatusValue;
   processing: MeetingProcessingStatus | null;
 };
+
+export type TranscriptSegment = {
+  id: string;
+  startTime: number;
+  endTime: number;
+  text: string;
+  confidence: number | null;
+};
+
+export type Transcript = {
+  id: string;
+  meetingId: string;
+  fullText: string;
+  language: string | null;
+  duration: number | null;
+  segments: TranscriptSegment[];
+};
+
+export type TranscriptResponse = Transcript;

@@ -1,0 +1,3 @@
+export const DEFAULT_TRANSCRIPTION_MODEL = 'whisper-large-v3-turbo';
+export const DEFAULT_GROQ_MAX_AUDIO_BYTES = 24_000_000;
+export const DEFAULT_TRANSCRIPTION_CHUNK_SECONDS = 600;

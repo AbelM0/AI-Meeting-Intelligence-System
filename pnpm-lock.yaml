@@ -77,6 +77,12 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      groq-sdk:
+        specifier: ^1.5.0
+        version: 1.5.0
       ioredis:
         specifier: ^5.4.0
         version: 5.11.1
@@ -2307,6 +2313,10 @@ packages:
 
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
+
+  groq-sdk@1.5.0:
+    resolution: {integrity: sha512-aa5yaMVd8kehBacU3Pp7roObOuPksZNau+nPW+GDDB7OV/8jybVzeeOv54lZj8owNNIc3a7Tu2eYI7/kIwtMNw==}
+    hasBin: true
 
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
@@ -6321,6 +6331,8 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   graphemer@1.4.0: {}
+
+  groq-sdk@1.5.0: {}
 
   has-bigints@1.1.0: {}
 

@@ -22,6 +22,7 @@ import type {
   AudioUploadAuthorization,
   MeetingProcessResponse,
   MeetingStatusResponse,
+  TranscriptResponse,
 } from '@meeting-intelligence/types';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
@@ -52,6 +53,13 @@ export class MeetingsController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<MeetingStatusResponse> {
     return this.meetingsService.getStatus(id);
+  }
+
+  @Get(':id/transcript')
+  getTranscript(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<TranscriptResponse> {
+    return this.meetingsService.getTranscript(id);
   }
 
   @Post(':id/process')

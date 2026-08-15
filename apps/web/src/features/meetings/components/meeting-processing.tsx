@@ -66,7 +66,7 @@ function getStepState(
   processing: MeetingProcessingStatus | null,
 ): 'complete' | 'current' | 'pending' | 'failed' {
   if (index === 0) return 'complete';
-  if (processing?.status === 'COMPLETED') return 'complete';
+  if (processing?.status === 'COMPLETED') return index < 4 ? 'complete' : 'pending';
 
   const stageIndex =
     processing?.currentStage === 'TRANSCRIBING'
@@ -108,11 +108,11 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
                 id="processing-title"
                 className="text-xl font-semibold tracking-[-0.02em] text-[#111827]"
               >
-                {status === 'COMPLETED' ? 'Meeting processed' : 'Understanding your meeting'}
+                {status === 'COMPLETED' ? 'Transcript ready' : 'Understanding your meeting'}
               </h2>
               <p className="mt-1 max-w-[65ch] text-sm leading-6 text-[#6b7280]">
                 {status === 'COMPLETED'
-                  ? 'Your meeting intelligence is ready.'
+                  ? 'Your timestamped transcript is ready to review.'
                   : status === 'FAILED'
                     ? 'Processing stopped before completion. Your recording is safe.'
                     : isActive

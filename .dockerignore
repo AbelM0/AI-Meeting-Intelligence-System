@@ -1,0 +1,33 @@
+# Dependencies and package-manager state
+**/node_modules
+.pnpm-store
+
+# Build output
+**/.next
+**/dist
+**/.turbo
+**/*.tsbuildinfo
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Repository and local tooling
+.git
+.gitignore
+.agents
+.codex
+.cursor
+.opencode
+.impeccable
+.pnpm-debug.log*
+*.log
+
+# Local-only files
+coverage
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal

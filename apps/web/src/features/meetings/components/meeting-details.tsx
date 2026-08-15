@@ -14,6 +14,7 @@ import { useMeeting, useMeetingStatus } from '../hooks/use-meetings';
 import { AudioRecording } from './audio-recording';
 import { MeetingStatusBadge } from './meeting-status-badge';
 import { MeetingProcessing } from './meeting-processing';
+import { MeetingTranscript } from './meeting-transcript';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -153,6 +154,13 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         </div>
       </section>
       <MeetingProcessing meeting={currentMeeting} />
+      {meeting.audioPath ? (
+        <MeetingTranscript
+          meetingId={meeting.id}
+          status={currentMeeting.status}
+          processingError={statusQuery.data?.processing?.error}
+        />
+      ) : null}
     </div>
   );
 }
