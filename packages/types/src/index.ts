@@ -53,12 +53,21 @@ export type MeetingStatusResponse = {
   processing: MeetingProcessingStatus | null;
 };
 
+export type TranscriptSpeaker = {
+  id: string;
+  providerSpeakerId: number;
+  label: string;
+  name: string | null;
+};
+
 export type TranscriptSegment = {
   id: string;
   startTime: number;
   endTime: number;
   text: string;
   confidence: number | null;
+  speakerId: string | null;
+  speaker: TranscriptSpeaker | null;
 };
 
 export type Transcript = {
@@ -67,6 +76,7 @@ export type Transcript = {
   fullText: string;
   language: string | null;
   duration: number | null;
+  speakers: TranscriptSpeaker[];
   segments: TranscriptSegment[];
 };
 

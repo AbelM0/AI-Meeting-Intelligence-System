@@ -29,6 +29,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@deepgram/sdk':
+        specifier: ^5.8.0
+        version: 5.8.0
       '@meeting-intelligence/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -80,9 +83,6 @@ importers:
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
-      groq-sdk:
-        specifier: ^1.5.0
-        version: 1.5.0
       ioredis:
         specifier: ^5.4.0
         version: 5.11.1
@@ -351,6 +351,10 @@ packages:
   '@colors/colors@1.5.0':
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
+
+  '@deepgram/sdk@5.8.0':
+    resolution: {integrity: sha512-AqsdchmyrTOZdvmv1Y5VQ8BF+xH2O8ZvYE7Ts0u12jhAR99Z0EBKrLV82xBHKRGcVsoK5dUGfsE4H0blSzD9gg==}
+    engines: {node: '>=18.0.0'}
 
   '@emnapi/core@1.10.0':
     resolution: {integrity: sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw==}
@@ -2317,10 +2321,6 @@ packages:
   graphemer@1.4.0:
     resolution: {integrity: sha512-EtKwoO6kxCL9WO5xipiHTZlSzBm7WLT627TqC/uVRd0HKmq8NXyebnNYxDoBi7wt8eTWrUrKXCOVaFq9x1kgag==}
 
-  groq-sdk@1.5.0:
-    resolution: {integrity: sha512-aa5yaMVd8kehBacU3Pp7roObOuPksZNau+nPW+GDDB7OV/8jybVzeeOv54lZj8owNNIc3a7Tu2eYI7/kIwtMNw==}
-    hasBin: true
-
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
     engines: {node: '>= 0.4'}
@@ -4037,6 +4037,13 @@ snapshots:
 
   '@colors/colors@1.5.0':
     optional: true
+
+  '@deepgram/sdk@5.8.0':
+    dependencies:
+      ws: 8.21.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@emnapi/core@1.10.0':
     dependencies:
@@ -6346,8 +6353,6 @@ snapshots:
   graceful-fs@4.2.11: {}
 
   graphemer@1.4.0: {}
-
-  groq-sdk@1.5.0: {}
 
   has-bigints@1.1.0: {}
 

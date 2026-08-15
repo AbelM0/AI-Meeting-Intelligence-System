@@ -1,6 +1,21 @@
 export type TranscriptionInput = {
-  filePath: string;
+  audioUrl: string;
   language: string | null;
+  meetingId?: string;
+};
+
+export type TranscriptionWord = {
+  word: string;
+  startTime: number;
+  endTime: number;
+  confidence: number | null;
+  providerSpeakerId: number | null;
+  speakerConfidence: number | null;
+};
+
+export type TranscriptionSpeaker = {
+  providerSpeakerId: number;
+  label: string;
 };
 
 export type TranscriptionSegment = {
@@ -8,12 +23,15 @@ export type TranscriptionSegment = {
   endTime: number;
   text: string;
   confidence?: number | null;
+  providerSpeakerId: number | null;
+  words?: TranscriptionWord[];
 };
 
 export type TranscriptionResult = {
   text: string;
   language: string | null;
   duration: number | null;
+  speakers: TranscriptionSpeaker[];
   segments: TranscriptionSegment[];
 };
 

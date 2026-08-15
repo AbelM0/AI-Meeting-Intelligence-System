@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @meeting-intelligence/database db:generate",
     "db:migrate": "pnpm --filter @meeting-intelligence/database db:migrate",
+    "db:deploy": "pnpm --filter @meeting-intelligence/database db:deploy",
     "db:studio": "pnpm --filter @meeting-intelligence/database db:studio"
   },
   "devDependencies": {

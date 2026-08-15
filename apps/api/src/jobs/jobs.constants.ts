@@ -4,6 +4,7 @@ export const MEETING_PROCESSING_JOB = 'process-meeting';
 
 export type MeetingProcessingJobData = {
   meetingId: string;
+  forceTranscription?: boolean;
 };
 
 export function getMeetingJobId(meetingId: string): string {

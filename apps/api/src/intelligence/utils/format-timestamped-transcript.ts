@@ -4,6 +4,10 @@ export type TimestampedTranscript = {
     startTime: number;
     endTime?: number;
     text: string;
+    speaker?: {
+      label: string;
+      name: string | null;
+    } | null;
   }>;
 };
 
@@ -18,7 +22,11 @@ export function formatTimestampedTranscript(transcript: TimestampedTranscript): 
   }
 
   return segments
-    .map((segment) => `[${formatTranscriptTimestamp(segment.startTime)}]\n${segment.text.trim()}`)
+    .map((segment) => {
+      const speakerName = segment.speaker ? (segment.speaker.name ?? segment.speaker.label) : null;
+      const speakerPrefix = speakerName ? ` ${speakerName}:` : '';
+      return `[${formatTranscriptTimestamp(segment.startTime)}]${speakerPrefix}\n${segment.text.trim()}`;
+    })
     .join('\n\n');
 }
 

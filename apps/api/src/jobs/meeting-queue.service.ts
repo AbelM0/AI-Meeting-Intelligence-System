@@ -29,7 +29,7 @@ export class MeetingQueueService implements OnModuleDestroy {
     await this.queue.close();
   }
 
-  async enqueue(meetingId: string): Promise<void> {
+  async enqueue(meetingId: string, options: { forceTranscription?: boolean } = {}): Promise<void> {
     await this.waitUntilReady();
     const jobId = getMeetingJobId(meetingId);
     const existingJob = await this.queue.getJob(jobId);
@@ -45,7 +45,10 @@ export class MeetingQueueService implements OnModuleDestroy {
 
     await this.queue.add(
       MEETING_PROCESSING_JOB,
-      { meetingId },
+      {
+        meetingId,
+        ...(options.forceTranscription ? { forceTranscription: true } : {}),
+      },
       {
         jobId,
         attempts: 3,

@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
-import { AudioModule } from '../audio/audio.module';
-import { GroqTranscriptionProvider } from './providers/groq-transcription.provider';
+import { StorageModule } from '../storage/storage.module';
+import { DeepgramTranscriptionProvider } from './providers/deepgram-transcription.provider';
 import { TRANSCRIPTION_PROVIDER } from './types/transcription-result';
 import { TranscriptionService } from './transcription.service';
 
 @Module({
-  imports: [AudioModule],
+  imports: [StorageModule],
   providers: [
-    GroqTranscriptionProvider,
+    DeepgramTranscriptionProvider,
     TranscriptionService,
-    { provide: TRANSCRIPTION_PROVIDER, useExisting: GroqTranscriptionProvider },
+    { provide: TRANSCRIPTION_PROVIDER, useExisting: DeepgramTranscriptionProvider },
   ],
   exports: [TranscriptionService],
 })

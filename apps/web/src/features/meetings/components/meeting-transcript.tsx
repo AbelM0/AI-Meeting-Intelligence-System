@@ -34,6 +34,10 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function getSpeakerDisplayName(speaker: TranscriptSegment['speaker']): string | null {
+  return speaker ? (speaker.name ?? speaker.label) : null;
+}
+
 function TranscriptRows({
   segments,
   query,
@@ -54,12 +58,22 @@ function TranscriptRows({
           key={segment.id}
           className="grid gap-2 py-5 sm:grid-cols-[72px_minmax(0,1fr)] sm:gap-6"
         >
-          <time
-            className="font-mono text-xs font-semibold tabular-nums text-[#4f46e5]"
-            dateTime={`PT${Math.max(0, segment.startTime)}S`}
-          >
-            {formatTimestamp(segment.startTime)}
-          </time>
+          <div className="space-y-2">
+            <time
+              className="font-mono text-xs font-semibold tabular-nums text-[#4f46e5]"
+              dateTime={`PT${Math.max(0, segment.startTime)}S`}
+            >
+              {formatTimestamp(segment.startTime)}
+            </time>
+            {segment.speaker ? (
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
+                <span className="font-mono text-[#4f46e5]">
+                  S{segment.speaker.providerSpeakerId + 1}
+                </span>
+                <span>{getSpeakerDisplayName(segment.speaker)}</span>
+              </div>
+            ) : null}
+          </div>
           <p className="max-w-[72ch] text-[15px] leading-7 text-[#1f2937]">
             <HighlightedText text={segment.text} query={query} />
           </p>
@@ -115,6 +129,8 @@ export function MeetingTranscript({
               endTime: transcript.duration ?? 0,
               text: transcript.fullText,
               confidence: null,
+              speakerId: null,
+              speaker: null,
             },
           ]
         : [];
@@ -193,10 +209,12 @@ export function MeetingTranscript({
       >
         {activeStatuses.includes(status) ? (
           <div className="rounded-lg border border-[#a5f3fc] bg-[#ecfeff] p-5" aria-live="polite">
-            <p className="font-semibold text-[#164e63]">Creating transcript...</p>
+            <p className="font-semibold text-[#164e63]">
+              Creating transcript and identifying speakers...
+            </p>
             <p className="mt-1 text-sm leading-6 text-[#155e75]">
-              Audio is being prepared and transcribed. This view will update when the transcript is
-              ready.
+              The private recording is being submitted for transcription and speaker identification.
+              This view will update when the transcript is ready.
             </p>
           </div>
         ) : transcriptQuery.isPending ? (

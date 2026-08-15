@@ -17,7 +17,7 @@ export type MeetingIntelligenceResult = {
   generatedAt: Date;
 };
 
-export const MEETING_INTELLIGENCE_PROMPT_VERSION = 'v1';
+export const MEETING_INTELLIGENCE_PROMPT_VERSION = 'v2';
 
 export const INTELLIGENCE_STAGES = {
   SUMMARY: 'ANALYZING_SUMMARY',

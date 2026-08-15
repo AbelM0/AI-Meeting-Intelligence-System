@@ -38,7 +38,7 @@ enum ActionItemStatus {
 }
 
 model Meeting {
-  id            String          @id @default(uuid()) @db.Uuid
+  id            String           @id @default(uuid()) @db.Uuid
   title         String
   audioPath     String?
   audioFileName String?
@@ -46,11 +46,12 @@ model Meeting {
   fileSize      Int?
   duration      Float?
   language      String?
-  status        MeetingStatus   @default(UPLOADED)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  status        MeetingStatus    @default(UPLOADED)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   processingJob ProcessingJob?
   transcript    Transcript?
+  speakers      MeetingSpeaker[]
   summary       MeetingSummary?
   decisions     Decision[]
   actionItems   ActionItem[]
@@ -82,18 +83,36 @@ model Transcript {
   segments  TranscriptSegment[]
 }
 
+model MeetingSpeaker {
+  id                 String              @id @default(uuid()) @db.Uuid
+  meetingId          String              @db.Uuid
+  providerSpeakerId  Int
+  label              String
+  name               String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  meeting            Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  transcriptSegments TranscriptSegment[]
+
+  @@unique([meetingId, providerSpeakerId])
+  @@index([meetingId])
+}
+
 model TranscriptSegment {
-  id           String     @id @default(uuid()) @db.Uuid
-  transcriptId String     @db.Uuid
+  id           String          @id @default(uuid()) @db.Uuid
+  transcriptId String          @db.Uuid
+  speakerId    String?         @db.Uuid
   startTime    Float
   endTime      Float
   text         String
   confidence   Float?
-  createdAt    DateTime   @default(now())
-  transcript   Transcript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  createdAt    DateTime        @default(now())
+  transcript   Transcript      @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
+  speaker      MeetingSpeaker? @relation(fields: [speakerId], references: [id], onDelete: SetNull)
 
   @@index([transcriptId])
   @@index([transcriptId, startTime])
+  @@index([speakerId])
 }
 
 model MeetingSummary {

@@ -2,7 +2,6 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { MeetingStatus, ProcessingJobStatus } from '@meeting-intelligence/database';
 import { Job, UnrecoverableError } from 'bullmq';
-import { AudioProcessingError } from '../../audio/audio-processing.service';
 import { PrismaService } from '../../database/prisma.service';
 import { IntelligenceService } from '../../intelligence/intelligence.service';
 import {
@@ -11,7 +10,7 @@ import {
 } from '../../intelligence/types/intelligence-result';
 import { DeepSeekProviderError } from '../../intelligence/providers/deepseek.provider';
 import { TranscriptService } from '../../transcript/transcript.service';
-import { TranscriptionProviderError } from '../../transcription/providers/groq-transcription.provider';
+import { TranscriptionProviderError } from '../../transcription/providers/deepgram-transcription.provider';
 import {
   TranscriptionService,
   type TranscriptionProgress,
@@ -51,6 +50,7 @@ export class MeetingProcessor extends WorkerHost {
 
   async process(job: Job<MeetingProcessingJobData>): Promise<void> {
     const { meetingId } = job.data;
+    const forceTranscription = job.data.forceTranscription === true;
 
     try {
       const meeting = await this.prisma.meeting.findUnique({
@@ -80,7 +80,7 @@ export class MeetingProcessor extends WorkerHost {
         },
       });
 
-      if (!meeting.transcript) {
+      if (!meeting.transcript || forceTranscription) {
         await this.persistStage(job, meetingId, PREPROCESSING_STAGE);
         const transcript = await this.transcription.transcribeMeeting(
           {
@@ -97,7 +97,12 @@ export class MeetingProcessor extends WorkerHost {
 
       const transcript = await this.prisma.transcript.findUniqueOrThrow({
         where: { meetingId },
-        include: { segments: { orderBy: { startTime: 'asc' } } },
+        include: {
+          segments: {
+            orderBy: { startTime: 'asc' },
+            include: { speaker: true },
+          },
+        },
       });
 
       const intelligence = await this.intelligence.analyzeTranscript(
@@ -182,13 +187,7 @@ export class MeetingProcessor extends WorkerHost {
     meetingId: string,
     progress: TranscriptionProgress,
   ): Promise<void> {
-    const boundedProgress = Math.min(
-      75,
-      20 +
-        (progress.totalChunks > 0
-          ? Math.round((progress.completedChunks / progress.totalChunks) * 55)
-          : 0),
-    );
+    const boundedProgress = progress.phase === 'completed' ? 68 : 20;
 
     await this.prisma.$transaction([
       this.prisma.meeting.update({
@@ -256,9 +255,6 @@ export class MeetingProcessor extends WorkerHost {
   }
 
   private toProcessingError(error: unknown): Error {
-    if (error instanceof AudioProcessingError) {
-      return new UnrecoverableError(error.message);
-    }
     if (error instanceof TranscriptionProviderError && !error.retryable) {
       return new UnrecoverableError(error.message);
     }

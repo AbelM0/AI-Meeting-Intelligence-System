@@ -17,8 +17,8 @@ const activeStatuses = ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'] 
 
 const steps = [
   { label: 'Recording uploaded' },
-  { label: 'Preparing audio' },
-  { label: 'Creating transcript' },
+  { label: 'Preparing secure audio access' },
+  { label: 'Creating transcript + identifying speakers' },
   { label: 'Analyzing discussion' },
   { label: 'Finding decisions' },
   { label: 'Extracting action items' },

@@ -21,6 +21,21 @@ void test('formats transcript segments in chronological timestamp order', () => 
   );
 });
 
+void test('includes the normalized speaker label when diarization is available', () => {
+  const formatted = formatTimestampedTranscript({
+    fullText: 'Fallback text',
+    segments: [
+      {
+        startTime: 18,
+        text: 'I will update the deployment schedule.',
+        speaker: { label: 'Speaker 2', name: null },
+      },
+    ],
+  });
+
+  assert.equal(formatted, '[00:18] Speaker 2:\nI will update the deployment schedule.');
+});
+
 void test('falls back to full text and estimates tokens deterministically', () => {
   const formatted = formatTimestampedTranscript({ fullText: 'Fallback transcript.', segments: [] });
   assert.equal(formatted, '[00:00]\nFallback transcript.');

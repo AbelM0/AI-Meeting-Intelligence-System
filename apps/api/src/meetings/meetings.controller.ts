@@ -78,6 +78,14 @@ export class MeetingsController {
     return this.meetingsService.retry(id);
   }
 
+  @Post(':id/reprocess-transcription')
+  @HttpCode(HttpStatus.ACCEPTED)
+  reprocessTranscription(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingProcessResponse> {
+    return this.meetingsService.reprocessTranscription(id);
+  }
+
   @Post(':id/audio/upload-url')
   createAudioUpload(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,

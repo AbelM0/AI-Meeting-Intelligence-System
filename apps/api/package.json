@@ -8,9 +8,11 @@
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix=false",
     "typecheck": "tsc --noEmit",
-    "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/intelligence.service.spec.js"
+    "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/intelligence.service.spec.js",
+    "test:transcription": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/transcription/providers/deepgram-transcription.provider.spec.js"
   },
   "dependencies": {
+    "@deepgram/sdk": "^5.8.0",
     "@meeting-intelligence/database": "workspace:*",
     "@meeting-intelligence/schemas": "workspace:*",
     "@meeting-intelligence/types": "workspace:*",
@@ -28,7 +30,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.5",
-    "groq-sdk": "^1.5.0",
     "ioredis": "^5.4.0",
     "openai": "^5.23.2",
     "reflect-metadata": "^0.2.2",

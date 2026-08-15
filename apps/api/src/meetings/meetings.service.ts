@@ -115,6 +115,11 @@ export class MeetingsService {
     return this.enqueuePreparedMeeting(id);
   }
 
+  async reprocessTranscription(id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(id, false, true);
+    return this.enqueuePreparedMeeting(id, true);
+  }
+
   async createAudioUpload(
     id: string,
     input: RequestAudioUploadInput,
@@ -163,6 +168,7 @@ export class MeetingsService {
         }),
         this.prisma.processingJob.deleteMany({ where: { meetingId: id } }),
         this.prisma.transcript.deleteMany({ where: { meetingId: id } }),
+        this.prisma.meetingSpeaker.deleteMany({ where: { meetingId: id } }),
         this.prisma.meetingSummary.deleteMany({ where: { meetingId: id } }),
         this.prisma.decision.deleteMany({ where: { meetingId: id } }),
         this.prisma.actionItem.deleteMany({ where: { meetingId: id } }),
@@ -259,7 +265,11 @@ export class MeetingsService {
     }
   }
 
-  private async prepareProcessing(id: string, retry: boolean): Promise<void> {
+  private async prepareProcessing(
+    id: string,
+    retry: boolean,
+    forceTranscription = false,
+  ): Promise<void> {
     const meeting = await this.prisma.meeting.findUnique({
       where: { id },
       include: { processingJob: true },
@@ -284,11 +294,22 @@ export class MeetingsService {
       throw new ConflictException('This meeting is already being processed.');
     }
 
-    if (retry && meeting.status !== MeetingStatus.FAILED) {
+    if (forceTranscription) {
+      const forceReprocessableStatuses: MeetingStatus[] = [
+        MeetingStatus.UPLOADED,
+        MeetingStatus.COMPLETED,
+        MeetingStatus.FAILED,
+      ];
+      if (!forceReprocessableStatuses.includes(meeting.status)) {
+        throw new ConflictException('This meeting is not ready to be reprocessed.');
+      }
+    }
+
+    if (!forceTranscription && retry && meeting.status !== MeetingStatus.FAILED) {
       throw new ConflictException('Only a failed meeting can be retried.');
     }
 
-    if (!retry && meeting.status !== MeetingStatus.UPLOADED) {
+    if (!forceTranscription && !retry && meeting.status !== MeetingStatus.UPLOADED) {
       throw new ConflictException(
         meeting.status === MeetingStatus.FAILED
           ? 'This meeting failed previously. Use retry to process it again.'
@@ -296,7 +317,11 @@ export class MeetingsService {
       );
     }
 
-    const expectedStatus = retry ? MeetingStatus.FAILED : MeetingStatus.UPLOADED;
+    const expectedStatus = forceTranscription
+      ? meeting.status
+      : retry
+        ? MeetingStatus.FAILED
+        : MeetingStatus.UPLOADED;
     await this.prisma.$transaction(async (transaction) => {
       const updated = await transaction.meeting.updateMany({
         where: { id, status: expectedStatus },
@@ -329,9 +354,12 @@ export class MeetingsService {
     });
   }
 
-  private async enqueuePreparedMeeting(id: string): Promise<MeetingProcessResponse> {
+  private async enqueuePreparedMeeting(
+    id: string,
+    forceTranscription = false,
+  ): Promise<MeetingProcessResponse> {
     try {
-      await this.meetingQueue.enqueue(id);
+      await this.meetingQueue.enqueue(id, { forceTranscription });
     } catch (error) {
       this.logger.error(
         `Meeting ${id} was prepared but could not be added to Redis.`,
