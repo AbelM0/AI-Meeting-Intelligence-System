@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
+import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 
 const geist = Geist({
@@ -19,6 +20,8 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  if (!publishableKey) throw new Error('NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is required.');
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body>
@@ -29,7 +32,14 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               '<!-- THESIS: Audio is the instrument, not an attachment; refuse the generic pastel card dashboard. OWN-WORLD: cool white studio canvas, layered light surfaces, indigo controls, cyan accents, 8px geometry. STORY: scan the library, understand state, create or open a meeting. FIRST VIEWPORT: single-line navigation, title and primary action, compact ruled counts, meeting library with a restrained light processing overview. FORM: user-pinned Auralis neural-audio console, refined by user direction; concept seed a5dd6e44. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->',
           }}
         />
-        <QueryProvider>{children}</QueryProvider>
+        <ClerkProvider
+          publishableKey={publishableKey}
+          signInUrl="/sign-in"
+          signUpUrl="/sign-up"
+          afterSignOutUrl="/"
+        >
+          <QueryProvider>{children}</QueryProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

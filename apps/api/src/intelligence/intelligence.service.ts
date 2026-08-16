@@ -183,9 +183,9 @@ export class IntelligenceService {
     });
   }
 
-  async getMeetingIntelligence(meetingId: string): Promise<MeetingIntelligence> {
-    const stored = await this.prisma.meeting.findUnique({
-      where: { id: meetingId },
+  async getMeetingIntelligence(userId: string, meetingId: string): Promise<MeetingIntelligence> {
+    const stored = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, userId },
       select: {
         summary: true,
         decisions: { include: { sourceSegment: { select: evidenceSourceSelect } } },
@@ -219,10 +219,19 @@ export class IntelligenceService {
     };
   }
 
-  async updateActionItem(id: string, input: UpdateActionItemInput): Promise<ActionItem> {
+  async updateActionItem(
+    userId: string,
+    id: string,
+    input: UpdateActionItemInput,
+  ): Promise<ActionItem> {
     try {
+      const owned = await this.prisma.actionItem.findFirst({
+        where: { id, meeting: { userId } },
+        select: { id: true },
+      });
+      if (!owned) throw new NotFoundException('Action item not found.');
       const actionItem = await this.prisma.actionItem.update({
-        where: { id },
+        where: { id: owned.id },
         data: {
           ...(input.task !== undefined ? { task: input.task } : {}),
           ...(input.owner !== undefined ? { owner: input.owner } : {}),

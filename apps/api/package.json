@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test:intelligence": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/intelligence/intelligence-schemas.spec.js .test-dist/intelligence/utils/format-timestamped-transcript.spec.js .test-dist/intelligence/utils/resolve-evidence-segment.spec.js .test-dist/intelligence/intelligence.service.spec.js",
     "test:meetings": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/meetings/meetings.service.spec.js",
+    "test:auth": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node --test .test-dist/auth/clerk.service.spec.js .test-dist/users/users.service.spec.js .test-dist/webhooks/clerk-webhook.controller.spec.js",
     "test:transcription": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/transcription/providers/deepgram-transcription.provider.spec.js"
   },
   "dependencies": {
+    "@clerk/backend": "^3.15.0",
     "@deepgram/sdk": "^5.8.0",
     "@meeting-intelligence/database": "workspace:*",
     "@meeting-intelligence/schemas": "workspace:*",

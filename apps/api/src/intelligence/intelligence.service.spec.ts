@@ -83,6 +83,7 @@ void test('persists authoritative action item edits without invoking DeepSeek', 
   let savedData: unknown;
   const prisma = {
     actionItem: {
+      findFirst: () => Promise.resolve({ id: 'action-1' }),
       update: ({ data }: { data: unknown }) => {
         savedData = data;
         return Promise.resolve({
@@ -104,7 +105,7 @@ void test('persists authoritative action item edits without invoking DeepSeek', 
     },
   };
   const service = new IntelligenceService(prisma as never, provider as never, new ConfigService());
-  const result = await service.updateActionItem('action-1', {
+  const result = await service.updateActionItem('user-a', 'action-1', {
     task: 'Fix authentication',
     owner: null,
     dueDate: 'Friday',

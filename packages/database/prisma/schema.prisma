@@ -49,12 +49,26 @@ model Meeting {
   status        MeetingStatus    @default(UPLOADED)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   processingJob ProcessingJob?
   transcript    Transcript?
   speakers      MeetingSpeaker[]
   summary       MeetingSummary?
   decisions     Decision[]
   actionItems   ActionItem[]
+
+  @@index([userId])
+}
+
+model User {
+  id        String    @id
+  email     String?
+  name      String?
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  meetings  Meeting[]
 }
 
 model ProcessingJob {

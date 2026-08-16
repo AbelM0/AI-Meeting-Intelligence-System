@@ -50,12 +50,13 @@ export class MeetingsService {
     private readonly transcript: TranscriptService,
   ) {}
 
-  create(input: CreateMeetingInput): Promise<MeetingRecord> {
-    return this.prisma.meeting.create({ data: input });
+  create(userId: string, input: CreateMeetingInput): Promise<MeetingRecord> {
+    return this.prisma.meeting.create({ data: { ...input, userId } });
   }
 
-  async findAll(): Promise<MeetingListItem[]> {
+  async findAll(userId: string): Promise<MeetingListItem[]> {
     const meetings = await this.prisma.meeting.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
       include: {
         summary: { select: { overview: true } },
@@ -74,8 +75,8 @@ export class MeetingsService {
     }));
   }
 
-  async findOne(id: string): Promise<MeetingRecord> {
-    const meeting = await this.prisma.meeting.findUnique({ where: { id } });
+  async findOne(userId: string, id: string): Promise<MeetingRecord> {
+    const meeting = await this.prisma.meeting.findFirst({ where: { id, userId } });
 
     if (!meeting) {
       throw new NotFoundException('Meeting not found.');
@@ -84,9 +85,9 @@ export class MeetingsService {
     return meeting;
   }
 
-  async getStatus(id: string): Promise<MeetingStatusResponse> {
-    const meeting = await this.prisma.meeting.findUnique({
-      where: { id },
+  async getStatus(userId: string, id: string): Promise<MeetingStatusResponse> {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id, userId },
       select: {
         id: true,
         status: true,
@@ -118,17 +119,19 @@ export class MeetingsService {
     };
   }
 
-  getTranscript(id: string): Promise<TranscriptResponse> {
+  async getTranscript(userId: string, id: string): Promise<TranscriptResponse> {
+    await this.findOne(userId, id);
     return this.transcript.getTranscriptByMeeting(id);
   }
 
   async updateSpeaker(
+    userId: string,
     meetingId: string,
     speakerId: string,
     input: UpdateMeetingSpeakerInput,
   ): Promise<TranscriptSpeaker> {
     const speaker = await this.prisma.meetingSpeaker.findFirst({
-      where: { id: speakerId, meetingId },
+      where: { id: speakerId, meetingId, meeting: { userId } },
     });
     if (!speaker) throw new NotFoundException('Speaker not found.');
 
@@ -144,26 +147,27 @@ export class MeetingsService {
     };
   }
 
-  async process(id: string): Promise<MeetingProcessResponse> {
-    await this.prepareProcessing(id, false);
+  async process(userId: string, id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(userId, id, false);
     return this.enqueuePreparedMeeting(id);
   }
 
-  async retry(id: string): Promise<MeetingProcessResponse> {
-    await this.prepareProcessing(id, true);
+  async retry(userId: string, id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(userId, id, true);
     return this.enqueuePreparedMeeting(id);
   }
 
-  async reprocessTranscription(id: string): Promise<MeetingProcessResponse> {
-    await this.prepareProcessing(id, false, true);
+  async reprocessTranscription(userId: string, id: string): Promise<MeetingProcessResponse> {
+    await this.prepareProcessing(userId, id, false, true);
     return this.enqueuePreparedMeeting(id, true);
   }
 
   async createAudioUpload(
+    userId: string,
     id: string,
     input: RequestAudioUploadInput,
   ): Promise<AudioUploadAuthorization> {
-    await this.findOne(id);
+    await this.findOne(userId, id);
     const metadata = this.parseUploadRequest(input);
     const extension = getAudioExtension(metadata.fileName);
 
@@ -171,14 +175,18 @@ export class MeetingsService {
       throw new BadRequestException('Unsupported audio file extension.');
     }
 
-    const path = `meetings/${id}/${randomUUID()}.${extension}`;
+    const path = `users/${userId}/meetings/${id}/${randomUUID()}.${extension}`;
     return this.storage.createSignedUpload(path);
   }
 
-  async confirmAudioUpload(id: string, input: ConfirmAudioUploadInput): Promise<MeetingRecord> {
-    const meeting = await this.findOne(id);
+  async confirmAudioUpload(
+    userId: string,
+    id: string,
+    input: ConfirmAudioUploadInput,
+  ): Promise<MeetingRecord> {
+    const meeting = await this.findOne(userId, id);
     const metadata = this.parseUploadConfirmation(input);
-    this.assertMeetingAudioPath(id, metadata.audioPath, metadata.fileName);
+    this.assertMeetingAudioPath(userId, id, metadata.audioPath, metadata.fileName);
 
     const storedObject = await this.storage.getObjectMetadata(metadata.audioPath);
 
@@ -231,8 +239,8 @@ export class MeetingsService {
     return updatedMeeting;
   }
 
-  async remove(id: string): Promise<void> {
-    const meeting = await this.findOne(id);
+  async remove(userId: string, id: string): Promise<void> {
+    const meeting = await this.findOne(userId, id);
 
     try {
       await this.prisma.meeting.delete({ where: { id } });
@@ -279,9 +287,9 @@ export class MeetingsService {
     return result.data;
   }
 
-  private assertMeetingAudioPath(id: string, path: string, fileName: string): void {
+  private assertMeetingAudioPath(userId: string, id: string, path: string, fileName: string): void {
     const extension = getAudioExtension(fileName);
-    const expectedPrefix = `meetings/${id}/`;
+    const expectedPrefix = `users/${userId}/meetings/${id}/`;
     const objectName = path.startsWith(expectedPrefix) ? path.slice(expectedPrefix.length) : '';
     const generatedNamePattern = new RegExp(
       `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.${extension ?? ''}$`,
@@ -305,12 +313,13 @@ export class MeetingsService {
   }
 
   private async prepareProcessing(
+    userId: string,
     id: string,
     retry: boolean,
     forceTranscription = false,
   ): Promise<void> {
-    const meeting = await this.prisma.meeting.findUnique({
-      where: { id },
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id, userId },
       include: { processingJob: true },
     });
 

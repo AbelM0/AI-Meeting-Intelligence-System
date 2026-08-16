@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import type { MeetingRecord } from '@meeting-intelligence/database';
 import {
@@ -31,94 +32,113 @@ import type {
 } from '@meeting-intelligence/types';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { MeetingsService } from './meetings.service';
+import { ClerkAuthGuard } from '../auth/clerk-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/interfaces/authenticated-user';
 
 @Controller('meetings')
+@UseGuards(ClerkAuthGuard)
 export class MeetingsController {
   constructor(private readonly meetingsService: MeetingsService) {}
 
   @Post()
   create(
+    @CurrentUser() user: AuthenticatedUser,
     @Body(new ZodValidationPipe(createMeetingSchema)) input: CreateMeetingInput,
   ): Promise<MeetingRecord> {
-    return this.meetingsService.create(input);
+    return this.meetingsService.create(user.clerkUserId, input);
   }
 
   @Get()
-  findAll(): Promise<MeetingListItem[]> {
-    return this.meetingsService.findAll();
+  findAll(@CurrentUser() user: AuthenticatedUser): Promise<MeetingListItem[]> {
+    return this.meetingsService.findAll(user.clerkUserId);
   }
 
   @Get(':id')
-  findOne(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<MeetingRecord> {
-    return this.meetingsService.findOne(id);
+  findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingRecord> {
+    return this.meetingsService.findOne(user.clerkUserId, id);
   }
 
   @Get(':id/status')
   getStatus(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<MeetingStatusResponse> {
-    return this.meetingsService.getStatus(id);
+    return this.meetingsService.getStatus(user.clerkUserId, id);
   }
 
   @Get(':id/transcript')
   getTranscript(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<TranscriptResponse> {
-    return this.meetingsService.getTranscript(id);
+    return this.meetingsService.getTranscript(user.clerkUserId, id);
   }
 
   @Patch(':meetingId/speakers/:speakerId')
   updateSpeaker(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('meetingId', new ParseUUIDPipe({ version: '4' })) meetingId: string,
     @Param('speakerId', new ParseUUIDPipe({ version: '4' })) speakerId: string,
     @Body(new ZodValidationPipe(updateMeetingSpeakerSchema)) input: UpdateMeetingSpeakerInput,
   ): Promise<TranscriptSpeaker> {
-    return this.meetingsService.updateSpeaker(meetingId, speakerId, input);
+    return this.meetingsService.updateSpeaker(user.clerkUserId, meetingId, speakerId, input);
   }
 
   @Post(':id/process')
   @HttpCode(HttpStatus.ACCEPTED)
   process(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<MeetingProcessResponse> {
-    return this.meetingsService.process(id);
+    return this.meetingsService.process(user.clerkUserId, id);
   }
 
   @Post(':id/retry')
   @HttpCode(HttpStatus.ACCEPTED)
   retry(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<MeetingProcessResponse> {
-    return this.meetingsService.retry(id);
+    return this.meetingsService.retry(user.clerkUserId, id);
   }
 
   @Post(':id/reprocess-transcription')
   @HttpCode(HttpStatus.ACCEPTED)
   reprocessTranscription(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ): Promise<MeetingProcessResponse> {
-    return this.meetingsService.reprocessTranscription(id);
+    return this.meetingsService.reprocessTranscription(user.clerkUserId, id);
   }
 
   @Post(':id/audio/upload-url')
   createAudioUpload(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body(new ZodValidationPipe(requestAudioUploadSchema)) input: RequestAudioUploadInput,
   ): Promise<AudioUploadAuthorization> {
-    return this.meetingsService.createAudioUpload(id, input);
+    return this.meetingsService.createAudioUpload(user.clerkUserId, id, input);
   }
 
   @Post(':id/audio/confirm')
   confirmAudioUpload(
+    @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body(new ZodValidationPipe(confirmAudioUploadSchema)) input: ConfirmAudioUploadInput,
   ): Promise<MeetingRecord> {
-    return this.meetingsService.confirmAudioUpload(id, input);
+    return this.meetingsService.confirmAudioUpload(user.clerkUserId, id, input);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string): Promise<void> {
-    await this.meetingsService.remove(id);
+  async remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.meetingsService.remove(user.clerkUserId, id);
   }
 }

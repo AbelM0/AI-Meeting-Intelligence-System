@@ -88,7 +88,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   return (
     <div>
       <Link
-        href="/"
+        href="/meetings"
         className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-[#4b5563] transition hover:text-[#111827]"
       >
         <ArrowLeftIcon className="h-4 w-4" weight="bold" aria-hidden="true" />

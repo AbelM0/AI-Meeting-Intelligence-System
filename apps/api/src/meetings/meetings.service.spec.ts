@@ -14,6 +14,7 @@ function createSpeakerService() {
       name: string | null;
       createdAt: Date;
       updatedAt: Date;
+      userId: string;
     }
   >([
     [
@@ -26,15 +27,23 @@ function createSpeakerService() {
         name: null,
         createdAt: new Date(),
         updatedAt: new Date(),
+        userId: 'user-a',
       },
     ],
   ]);
   const prisma = {
     meetingSpeaker: {
-      findFirst: ({ where }: { where: { id: string; meetingId: string } }) =>
+      findFirst: ({
+        where,
+      }: {
+        where: { id: string; meetingId: string; meeting: { userId: string } };
+      }) =>
         Promise.resolve(
           [...speakers.values()].find(
-            (speaker) => speaker.id === where.id && speaker.meetingId === where.meetingId,
+            (speaker) =>
+              speaker.id === where.id &&
+              speaker.meetingId === where.meetingId &&
+              speaker.userId === where.meeting.userId,
           ) ?? null,
         ),
       update: ({ where, data }: { where: { id: string }; data: { name: string | null } }) => {
@@ -51,16 +60,24 @@ function createSpeakerService() {
 
 void test('speaker rename persists and null restores the generated display label', async () => {
   const service = createSpeakerService();
-  const renamed = await service.updateSpeaker('meeting-1', 'speaker-1', { name: 'Abel' });
+  const renamed = await service.updateSpeaker('user-a', 'meeting-1', 'speaker-1', { name: 'Abel' });
   assert.equal(renamed.name, 'Abel');
-  const reset = await service.updateSpeaker('meeting-1', 'speaker-1', { name: null });
+  const reset = await service.updateSpeaker('user-a', 'meeting-1', 'speaker-1', { name: null });
   assert.equal(reset.name ?? reset.label, 'Speaker 1');
 });
 
 void test('a speaker cannot be updated through another meeting id', async () => {
   const service = createSpeakerService();
   await assert.rejects(
-    () => service.updateSpeaker('meeting-2', 'speaker-1', { name: 'Abel' }),
+    () => service.updateSpeaker('user-b', 'meeting-2', 'speaker-1', { name: 'Abel' }),
+    NotFoundException,
+  );
+});
+
+void test('a speaker cannot be updated by another user even with the meeting and speaker ids', async () => {
+  const service = createSpeakerService();
+  await assert.rejects(
+    () => service.updateSpeaker('user-b', 'meeting-1', 'speaker-1', { name: 'Intruder' }),
     NotFoundException,
   );
 });
@@ -69,8 +86,9 @@ void test('meeting list exposes relation counts without returning relation rows'
   const now = new Date('2026-08-15T12:00:00.000Z');
   const prisma = {
     meeting: {
-      findMany: () =>
-        Promise.resolve([
+      findMany: ({ where }: { where: { userId: string } }) => {
+        assert.equal(where.userId, 'user-a');
+        return Promise.resolve([
           {
             id: 'meeting-1',
             title: 'Engineering sync',
@@ -86,7 +104,8 @@ void test('meeting list exposes relation counts without returning relation rows'
             summary: { overview: 'Authentication migration and release planning' },
             _count: { decisions: 3, actionItems: 6, speakers: 3 },
           },
-        ]),
+        ]);
+      },
     },
   };
   const service = new MeetingsService(
@@ -96,7 +115,7 @@ void test('meeting list exposes relation counts without returning relation rows'
     {} as never,
     {} as never,
   );
-  const [meeting] = await service.findAll();
+  const [meeting] = await service.findAll('user-a');
   assert.equal(meeting.decisionCount, 3);
   assert.equal(meeting.actionItemCount, 6);
   assert.equal(meeting.speakerCount, 3);

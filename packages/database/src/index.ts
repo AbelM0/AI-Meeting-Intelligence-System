@@ -15,4 +15,5 @@ export type {
   ProcessingJob as ProcessingJobRecord,
   Transcript,
   TranscriptSegment,
+  User,
 } from '@prisma/client';

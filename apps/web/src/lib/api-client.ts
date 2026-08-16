@@ -7,6 +7,19 @@ export const apiClient = axios.create({
   },
 });
 
+let getAccessToken: () => Promise<string | null> = () => Promise.resolve(null);
+
+export function configureApiAuthentication(provider: () => Promise<string | null>): void {
+  getAccessToken = provider;
+}
+
+apiClient.interceptors.request.use(async (request) => {
+  const token = await getAccessToken();
+  if (token) request.headers.set('Authorization', `Bearer ${token}`);
+  else request.headers.delete('Authorization');
+  return request;
+});
+
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
     return error instanceof Error ? error.message : fallback;

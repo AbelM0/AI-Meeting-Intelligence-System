@@ -15,6 +15,7 @@ export type HealthResponse = {
 
 export type Meeting = {
   id: string;
+  userId: string;
   title: string;
   audioPath: string | null;
   audioFileName: string | null;

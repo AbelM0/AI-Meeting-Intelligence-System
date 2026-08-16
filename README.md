@@ -25,7 +25,7 @@ Production-oriented monorepo for an AI meeting intelligence platform. Meetings c
    pnpm install
    ```
 
-3. Copy `.env.example` to `.env`. Also copy `packages/database/.env.example` to `packages/database/.env` and `apps/web/.env.example` to `apps/web/.env.local`. Set the database and Supabase values before using recording uploads.
+3. Copy `.env.example` to `.env`. Also copy `packages/database/.env.example` to `packages/database/.env` and `apps/web/.env.example` to `apps/web/.env.local`. Set the database, Clerk, and Supabase values before starting the application.
 4. Start Redis for the local Node.js workflow:
 
    ```bash
@@ -97,29 +97,63 @@ The API loads `apps/api/.env` first and then the root `.env`. For the simplest s
 
 Create a private Supabase Storage bucket named `meeting-audio`. The API checks that this bucket is private before authorizing an upload. The service-role key belongs only in the backend/root environment; never add it to a `NEXT_PUBLIC_` variable.
 
-| Variable                         | Purpose                                              |
-| -------------------------------- | ---------------------------------------------------- |
-| `DATABASE_URL`                   | PostgreSQL/Supabase connection string used by Prisma |
-| `FRONTEND_URL`                   | Allowed browser origin for API CORS                  |
-| `NEXT_PUBLIC_API_URL`            | Browser-facing base URL for the REST API             |
-| `API_PORT`, `WEB_PORT`           | Host ports published by the Docker Compose services  |
-| `REDIS_HOST`, `REDIS_PORT`       | Local or hosted Redis connection                     |
-| `REDIS_URL`                      | Optional Redis URL overriding host and port          |
-| `SUPABASE_URL`                   | Supabase project URL                                 |
-| `SUPABASE_SERVICE_ROLE_KEY`      | Server-only Supabase administrative key              |
-| `SUPABASE_AUDIO_BUCKET`          | Private recording bucket (default `meeting-audio`)   |
-| `MAX_AUDIO_FILE_SIZE_MB`         | Backend recording size limit (default `50`)          |
-| `NEXT_PUBLIC_SUPABASE_URL`       | Browser-safe Supabase project URL                    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Browser-safe Supabase anonymous key                  |
-| `DEEPGRAM_API_KEY`               | Server-only Deepgram speech-to-text credential       |
-| `DEEPGRAM_TRANSCRIPTION_MODEL`   | Deepgram transcription model (default `nova-3`)      |
-| `DEEPGRAM_DIARIZATION_MODEL`     | Deepgram diarization model (default `latest`)        |
-| `FFMPEG_PATH`                    | FFmpeg executable path (default `ffmpeg`)            |
-| `FFPROBE_PATH`                   | FFprobe executable path (default `ffprobe`)          |
-| `DEEPSEEK_API_KEY`               | Server-only DeepSeek credential                      |
-| `DEEPSEEK_MODEL`                 | Analysis model (default `deepseek-v4-flash`)         |
-| `DEEPSEEK_BASE_URL`              | DeepSeek-compatible API base URL                     |
-| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS` | Single-pass transcript guard (default `100000`)      |
+### Clerk setup
+
+1. Create a Clerk application and configure the desired MVP sign-in methods.
+2. Copy its publishable key to `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/web/.env.local` and to backend-only `CLERK_PUBLISHABLE_KEY` in the root `.env`.
+3. Copy the secret key to backend-only `CLERK_SECRET_KEY`.
+4. Optionally copy the PEM JWT public key to `CLERK_JWT_KEY` for networkless verification.
+5. Set `CLERK_AUTHORIZED_PARTIES` to the comma-separated legitimate frontend origins (normally `http://localhost:3000` locally). Keep `FRONTEND_URL` aligned for CORS.
+6. Add a Clerk webhook endpoint for `user.created`, `user.updated`, and `user.deleted` at `https://your-api.example/api/v1/webhooks/clerk`, then copy its signing secret to backend-only `CLERK_WEBHOOK_SECRET`. Use any secure tunnel during local development; do not add its transient URL to source control.
+
+Clerk is the authentication and user-management provider. Supabase remains limited to PostgreSQL and private audio Storage. The API verifies every Clerk bearer token independently; the browser never receives the Clerk secret, JWT key, or webhook secret.
+
+The ownership migration preserves pre-Clerk rows by assigning them to `legacy_unassigned`. After your first Clerk login has synchronized its local `User` row, claim legacy development meetings with this SQL (replace the value with your actual Clerk `user_...` ID):
+
+```sql
+UPDATE "Meeting" SET "userId" = 'user_yourClerkId' WHERE "userId" = 'legacy_unassigned';
+```
+
+Verify the reassignment before optionally removing the holding user:
+
+```sql
+SELECT "userId", COUNT(*) FROM "Meeting" GROUP BY "userId";
+DELETE FROM "User" WHERE "id" = 'legacy_unassigned' AND NOT EXISTS (
+  SELECT 1 FROM "Meeting" WHERE "userId" = 'legacy_unassigned'
+);
+```
+
+Deletion webhooks deliberately anonymize the local profile while preserving owned meetings for retention. They never cascade-delete meeting data.
+
+| Variable                            | Purpose                                               |
+| ----------------------------------- | ----------------------------------------------------- |
+| `DATABASE_URL`                      | PostgreSQL/Supabase connection string used by Prisma  |
+| `FRONTEND_URL`                      | Allowed browser origin for API CORS                   |
+| `CLERK_AUTHORIZED_PARTIES`          | Allowed Clerk token originating frontend origins      |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Browser-safe Clerk publishable key                    |
+| `CLERK_PUBLISHABLE_KEY`             | Backend Clerk publishable key                         |
+| `CLERK_SECRET_KEY`                  | Server-only Clerk API and verification secret         |
+| `CLERK_JWT_KEY`                     | Optional server-only PEM key for offline verification |
+| `CLERK_WEBHOOK_SECRET`              | Server-only Clerk webhook signing secret              |
+| `NEXT_PUBLIC_API_URL`               | Browser-facing base URL for the REST API              |
+| `API_PORT`, `WEB_PORT`              | Host ports published by the Docker Compose services   |
+| `REDIS_HOST`, `REDIS_PORT`          | Local or hosted Redis connection                      |
+| `REDIS_URL`                         | Optional Redis URL overriding host and port           |
+| `SUPABASE_URL`                      | Supabase project URL                                  |
+| `SUPABASE_SERVICE_ROLE_KEY`         | Server-only Supabase administrative key               |
+| `SUPABASE_AUDIO_BUCKET`             | Private recording bucket (default `meeting-audio`)    |
+| `MAX_AUDIO_FILE_SIZE_MB`            | Backend recording size limit (default `50`)           |
+| `NEXT_PUBLIC_SUPABASE_URL`          | Browser-safe Supabase project URL                     |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Browser-safe Supabase anonymous key                   |
+| `DEEPGRAM_API_KEY`                  | Server-only Deepgram speech-to-text credential        |
+| `DEEPGRAM_TRANSCRIPTION_MODEL`      | Deepgram transcription model (default `nova-3`)       |
+| `DEEPGRAM_DIARIZATION_MODEL`        | Deepgram diarization model (default `latest`)         |
+| `FFMPEG_PATH`                       | FFmpeg executable path (default `ffmpeg`)             |
+| `FFPROBE_PATH`                      | FFprobe executable path (default `ffprobe`)           |
+| `DEEPSEEK_API_KEY`                  | Server-only DeepSeek credential                       |
+| `DEEPSEEK_MODEL`                    | Analysis model (default `deepseek-v4-flash`)          |
+| `DEEPSEEK_BASE_URL`                 | DeepSeek-compatible API base URL                      |
+| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS`    | Single-pass transcript guard (default `100000`)       |
 
 Never commit real credentials. All `.env*` files except `.env.example` are ignored.
 
