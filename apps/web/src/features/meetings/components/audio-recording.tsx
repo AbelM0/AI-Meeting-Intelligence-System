@@ -28,7 +28,8 @@ import {
 export function AudioRecording({
   meeting,
   seekTarget,
-}: Readonly<{ meeting: Meeting; seekTarget?: AudioSeekTarget | null }>) {
+  showPlayer = true,
+}: Readonly<{ meeting: Meeting; seekTarget?: AudioSeekTarget | null; showPlayer?: boolean }>) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
   const uploadMutation = useAudioUpload(meeting.id);
@@ -58,8 +59,16 @@ export function AudioRecording({
 
   if (hasRecording && !isReplacing) {
     return (
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-5">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+      <div
+        className={`rounded-lg border border-emerald-200 bg-emerald-50 ${showPlayer ? 'p-5' : 'p-4'}`}
+      >
+        <div
+          className={
+            showPlayer
+              ? 'flex flex-col justify-between gap-4 sm:flex-row sm:items-center'
+              : 'flex flex-col gap-4'
+          }
+        >
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
               <CheckCircleIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
@@ -73,13 +82,19 @@ export function AudioRecording({
               </p>
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div
+            className={
+              showPlayer
+                ? 'flex flex-col gap-2 sm:flex-row'
+                : 'grid grid-cols-2 gap-2 border-t border-emerald-200 pt-4'
+            }
+          >
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button
                   type="button"
                   disabled={processingLocked}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
+                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280] ${showPlayer ? 'min-h-11' : 'h-9'}`}
                 >
                   <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
                   {processingLocked ? 'Processing recording' : 'Replace recording'}
@@ -109,7 +124,7 @@ export function AudioRecording({
                 <button
                   type="button"
                   disabled={processingLocked || deleteMutation.isPending}
-                  className="min-h-11 rounded-lg px-4 text-sm font-semibold text-[#b91c1c] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`whitespace-nowrap rounded-md px-3 text-sm font-semibold text-[#b91c1c] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 ${showPlayer ? 'min-h-11' : 'h-9 border border-transparent'}`}
                 >
                   Delete recording
                 </button>
@@ -135,7 +150,7 @@ export function AudioRecording({
             </AlertDialog>
           </div>
         </div>
-        <AudioPlayer meetingId={meeting.id} seekTarget={seekTarget} />
+        {showPlayer ? <AudioPlayer meetingId={meeting.id} seekTarget={seekTarget} /> : null}
       </div>
     );
   }

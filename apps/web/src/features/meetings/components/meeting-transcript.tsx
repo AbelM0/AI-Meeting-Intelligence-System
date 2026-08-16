@@ -6,6 +6,7 @@ import {
   MagnifyingGlassIcon,
   PencilSimpleIcon,
   TextAlignLeftIcon,
+  UsersThreeIcon,
   WarningIcon,
   XIcon,
 } from '@phosphor-icons/react';
@@ -48,10 +49,18 @@ function HighlightedText({ text, query }: Readonly<{ text: string; query: string
 function SpeakerManager({
   meetingId,
   speakers,
-}: Readonly<{ meetingId: string; speakers: readonly TranscriptSpeaker[] }>) {
+  onClose,
+}: Readonly<{ meetingId: string; speakers: readonly TranscriptSpeaker[]; onClose: () => void }>) {
   const mutation = useUpdateMeetingSpeaker(meetingId);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
   if (speakers.length === 0) return null;
 
   function startEditing(speaker: TranscriptSpeaker) {
@@ -72,21 +81,22 @@ function SpeakerManager({
   }
 
   return (
-    <section
-      className="border-b border-[#e5e7eb] px-5 py-5 sm:px-7"
-      aria-labelledby="speakers-title"
-    >
-      <div className="flex items-baseline justify-between gap-4">
+    <div className="fixed inset-0 z-50 bg-[#111827]/35" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="ml-auto h-full w-full max-w-sm overflow-y-auto border-l bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="speakers-title">
+      <div className="flex items-start justify-between gap-4">
+        <div>
         <h3 id="speakers-title" className="text-sm font-semibold text-[#111827]">
           Speakers
         </h3>
-        <span className="font-mono text-xs text-[#6b7280]">{speakers.length}</span>
+        <p className="mt-1 text-xs text-muted-foreground">Rename detected speakers.</p>
+        </div>
+        <button type="button" autoFocus onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted" aria-label="Close speaker manager"><XIcon className="h-4 w-4" weight="bold" aria-hidden="true" /></button>
       </div>
-      <ul className="mt-3 grid gap-2 lg:grid-cols-2">
+      <ul className="mt-5 divide-y">
         {speakers.map((speaker) => (
           <li
             key={speaker.id}
-            className="flex min-h-12 items-center gap-3 rounded-lg bg-[#f9fafb] px-3"
+            className="flex min-h-16 items-center gap-3 py-2"
           >
             <span
               className="flex h-8 min-w-8 items-center justify-center rounded-full border border-[#c7d2fe] bg-[#eef2ff] px-1 font-mono text-xs font-semibold text-[#4338ca]"
@@ -154,6 +164,7 @@ function SpeakerManager({
         ))}
       </ul>
     </section>
+    </div>
   );
 }
 
@@ -220,15 +231,18 @@ export function MeetingTranscript({
   status,
   processingError,
   focusTarget,
+  audioPlayer,
 }: Readonly<{
   meetingId: string;
   status: MeetingStatusValue;
   processingError?: string | null;
   focusTarget?: EvidenceTarget | null;
+  audioPlayer?: React.ReactNode;
 }>) {
   const isCompleted = status === 'COMPLETED';
   const transcriptQuery = useMeetingTranscript(meetingId, isCompleted || status === 'FAILED');
   const [search, setSearch] = useState('');
+  const [speakersOpen, setSpeakersOpen] = useState(false);
   const transcript = transcriptQuery.data;
   const query = search.trim();
 
@@ -281,20 +295,15 @@ export function MeetingTranscript({
 
   if (status === 'UPLOADED') return null;
   return (
-    <section
-      id="meeting-transcript-panel"
-      role="tabpanel"
-      aria-labelledby="meeting-transcript-tab"
-      className="mt-7 overflow-hidden rounded-lg border border-[#e5e7eb] bg-white"
-    >
-      <div className="border-b border-[#e5e7eb] p-5 sm:p-7">
+    <section className="py-5">
+      <div className="border-b pb-4">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#ecfeff] text-[#0e7490]">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#eef2ff] text-primary">
               <TextAlignLeftIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#111827]">
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-[#111827]">
                 Transcript
               </h2>
               <p className="mt-1 max-w-[60ch] text-sm leading-6 text-[#6b7280]">
@@ -317,8 +326,8 @@ export function MeetingTranscript({
           ) : null}
         </div>
         {isCompleted && transcript ? (
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
-            <label className="relative block w-full max-w-md">
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="relative block w-full sm:max-w-md">
               <span className="sr-only">Search transcript</span>
               <MagnifyingGlassIcon
                 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]"
@@ -329,7 +338,7 @@ export function MeetingTranscript({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search transcript..."
-                className="min-h-11 w-full rounded-lg border border-[#d1d5db] bg-[#f9fafb] pl-10 pr-4 text-sm text-[#111827] outline-none transition hover:border-[#9ca3af] focus:border-[#4f46e5] focus:bg-white focus:ring-4 focus:ring-[#e0e7ff]"
+                className="h-9 w-full rounded-md border border-[#d1d5db] bg-white pl-9 pr-3 text-sm text-[#111827] outline-none transition hover:border-[#9ca3af] focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff]"
               />
             </label>
             <span className="min-h-6 text-sm text-[#6b7280]" aria-live="polite">
@@ -337,12 +346,13 @@ export function MeetingTranscript({
                 ? `${visibleSegments.length} ${visibleSegments.length === 1 ? 'match' : 'matches'}`
                 : ''}
             </span>
+            <button type="button" onClick={() => setSpeakersOpen(true)} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-white px-3 text-sm font-medium transition hover:bg-muted"><UsersThreeIcon className="h-4 w-4" aria-hidden="true" />Speakers</button>
           </div>
         ) : null}
       </div>
-      {transcript ? <SpeakerManager meetingId={meetingId} speakers={transcript.speakers} /> : null}
+      {transcript && speakersOpen ? <SpeakerManager meetingId={meetingId} speakers={transcript.speakers} onClose={() => setSpeakersOpen(false)} /> : null}
       <div
-        className="max-h-[min(65vh,44rem)] overflow-y-auto overscroll-contain p-4 sm:p-6"
+        className="max-h-[min(62vh,42rem)] overflow-y-auto overscroll-contain py-2"
         role="region"
         aria-label="Transcript content"
         tabIndex={0}
@@ -414,6 +424,7 @@ export function MeetingTranscript({
           </>
         ) : null}
       </div>
+      {audioPlayer ? <div className="sticky bottom-0 z-10 border-t bg-background/95 px-2 pb-2 backdrop-blur">{audioPlayer}</div> : null}
     </section>
   );
 }

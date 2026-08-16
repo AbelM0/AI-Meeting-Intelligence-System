@@ -1,119 +1,29 @@
 'use client';
 
 import type { MeetingListItem } from '@meeting-intelligence/types';
-import { ArrowUpRightIcon, CalendarBlankIcon, ClockIcon, TrashIcon } from '@phosphor-icons/react';
+import { ArrowsClockwiseIcon, DotsThreeIcon, TrashIcon } from '@phosphor-icons/react';
 import Link from 'next/link';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { useDeleteMeeting } from '../hooks/use-meetings';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useDeleteMeeting, useRetryMeeting } from '../hooks/use-meetings';
 import { MeetingStatusBadge } from './meeting-status-badge';
 
-const dateFormatter = new Intl.DateTimeFormat('en', {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-});
+const dateFormatter = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' });
 
-export function MeetingCard({
-  meeting,
-  index,
-}: Readonly<{ meeting: MeetingListItem; index: number }>) {
+export function MeetingCard({ meeting }: Readonly<{ meeting: MeetingListItem }>) {
   const deleteMutation = useDeleteMeeting();
-
+  const retryMutation = useRetryMeeting();
+  const counts = [meeting.decisionCount ? `${meeting.decisionCount} ${meeting.decisionCount === 1 ? 'decision' : 'decisions'}` : null, meeting.actionItemCount ? `${meeting.actionItemCount} ${meeting.actionItemCount === 1 ? 'action' : 'actions'}` : null].filter(Boolean).join(' · ');
+  const metadata = [dateFormatter.format(new Date(meeting.createdAt)), meeting.duration ? `${Math.round(meeting.duration / 60)} min` : null, meeting.speakerCount ? `${meeting.speakerCount} ${meeting.speakerCount === 1 ? 'speaker' : 'speakers'}` : null].filter(Boolean).join(' · ');
   return (
-    <article
-      className="group rounded-lg border border-transparent transition duration-200 hover:border-[#dfe2ea] hover:bg-[#f9fafb] focus-within:border-[#c7d2fe] focus-within:bg-[#f9fafb]"
-      role="listitem"
-    >
-      <div className="grid min-h-[82px] grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 px-3 py-4 sm:gap-4 sm:px-4">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-          <span className="hidden w-7 shrink-0 font-mono text-xs font-medium text-[#9ca3af] sm:block">
-            {String(index).padStart(2, '0')}
-          </span>
-          <div className="min-w-0">
-            <Link
-              href={`/meetings/${meeting.id}`}
-              className="inline-flex max-w-full items-center gap-2 rounded-md text-sm font-semibold text-[#111827] transition-colors hover:text-[#4338ca]"
-            >
-              <span className="truncate">{meeting.title}</span>
-              <ArrowUpRightIcon
-                className="h-3.5 w-3.5 shrink-0 text-[#6b7280] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100"
-                weight="bold"
-                aria-hidden="true"
-              />
-            </Link>
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#6b7280]">
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarBlankIcon className="h-3.5 w-3.5" weight="regular" aria-hidden="true" />
-                {dateFormatter.format(new Date(meeting.createdAt))}
-              </span>
-              {meeting.duration ? (
-                <span className="inline-flex items-center gap-1.5 font-mono">
-                  <ClockIcon className="h-3.5 w-3.5" weight="regular" aria-hidden="true" />
-                  {Math.round(meeting.duration / 60)} min
-                </span>
-              ) : (
-                <span className="font-mono text-[#9ca3af]">No duration</span>
-              )}
-            </div>
-            {meeting.summaryPreview ? (
-              <p className="mt-2 line-clamp-1 max-w-2xl text-sm text-[#4b5563]">
-                {meeting.summaryPreview}
-              </p>
-            ) : null}
-            {meeting.decisionCount > 0 || meeting.actionItemCount > 0 ? (
-              <p className="mt-2 font-mono text-[11px] font-semibold text-[#4f46e5]">
-                {meeting.decisionCount > 0
-                  ? `${meeting.decisionCount} ${meeting.decisionCount === 1 ? 'decision' : 'decisions'}`
-                  : null}
-                {meeting.decisionCount > 0 && meeting.actionItemCount > 0 ? ' · ' : null}
-                {meeting.actionItemCount > 0
-                  ? `${meeting.actionItemCount} ${meeting.actionItemCount === 1 ? 'action item' : 'action items'}`
-                  : null}
-              </p>
-            ) : null}
-          </div>
+    <article className="group relative transition-colors hover:bg-muted/55 focus-within:bg-muted/55" role="listitem">
+      <Link href={`/meetings/${meeting.id}`} className="absolute inset-0 z-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Open ${meeting.title}`} />
+      <div className="pointer-events-none relative z-10 grid min-h-[104px] gap-3 px-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3">
+        <div className="min-w-0"><div className="flex items-start justify-between gap-3 sm:justify-start"><h3 className="truncate text-sm font-semibold tracking-[-0.01em]">{meeting.title}</h3><MeetingStatusBadge status={meeting.status} /></div>{meeting.summaryPreview ? <p className="mt-1 line-clamp-1 max-w-3xl text-sm text-muted-foreground">{meeting.summaryPreview}</p> : <p className="mt-1 text-sm text-muted-foreground">{meeting.status === 'FAILED' ? 'Transcript available · Analysis needs attention' : 'Recording and meeting intelligence'}</p>}<p className="mt-2 text-xs text-muted-foreground">{metadata}</p></div>
+        <div className="flex items-end justify-between gap-3 sm:justify-end">
+          {meeting.status === 'FAILED' ? <button type="button" onClick={() => retryMutation.mutate(meeting.id)} disabled={retryMutation.isPending} className="pointer-events-auto h-8 rounded-md border bg-white px-3 text-xs font-medium transition hover:bg-muted disabled:opacity-60">{retryMutation.isPending ? 'Retrying…' : 'Retry analysis'}</button> : counts ? <p className="text-xs text-muted-foreground">{counts}</p> : <span />}
+          <AlertDialog><DropdownMenu><DropdownMenuTrigger asChild><button type="button" className="pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition hover:bg-white hover:text-foreground" aria-label={`Actions for ${meeting.title}`}><DotsThreeIcon className="h-4 w-4" weight="bold" aria-hidden="true" /></button></DropdownMenuTrigger><DropdownMenuContent align="end" className="min-w-40">{meeting.status === 'FAILED' ? <DropdownMenuItem onSelect={() => retryMutation.mutate(meeting.id)}><ArrowsClockwiseIcon className="h-4 w-4" aria-hidden="true" />Retry analysis</DropdownMenuItem> : null}<AlertDialogTrigger asChild><DropdownMenuItem className="text-red-700 focus:bg-red-50 focus:text-red-800"><TrashIcon className="h-4 w-4" aria-hidden="true" />Delete</DropdownMenuItem></AlertDialogTrigger></DropdownMenuContent></DropdownMenu><AlertDialogContent><AlertDialogTitle>Delete meeting?</AlertDialogTitle><AlertDialogDescription>“{meeting.title}” and its recording, transcript, analysis, and share links will be permanently deleted.</AlertDialogDescription><div className="mt-6 flex justify-end gap-3"><AlertDialogCancel className="h-9 rounded-md border px-4 text-sm font-medium">Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteMutation.mutate(meeting.id)} className="h-9 rounded-md bg-red-700 px-4 text-sm font-medium text-white">Delete meeting</AlertDialogAction></div></AlertDialogContent></AlertDialog>
         </div>
-
-        <MeetingStatusBadge status={meeting.status} />
-
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button
-              type="button"
-              disabled={deleteMutation.isPending}
-              className="flex h-11 w-11 items-center justify-center rounded-lg text-[#9ca3af] transition duration-200 hover:bg-red-50 hover:text-red-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={`Delete ${meeting.title}`}
-            >
-              <TrashIcon className="h-4 w-4" weight="regular" aria-hidden="true" />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogTitle>Delete meeting?</AlertDialogTitle>
-            <AlertDialogDescription>
-              “{meeting.title}” and its recording, transcript, analysis, and share links will be
-              permanently deleted.
-            </AlertDialogDescription>
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151]">
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => deleteMutation.mutate(meeting.id)}
-                className="min-h-11 rounded-lg bg-[#b91c1c] px-4 text-sm font-semibold text-white"
-              >
-                Delete meeting
-              </AlertDialogAction>
-            </div>
-          </AlertDialogContent>
-        </AlertDialog>
       </div>
     </article>
   );

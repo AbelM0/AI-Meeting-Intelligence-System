@@ -1,4 +1,4 @@
-import { LockKeyIcon, WaveformIcon } from '@phosphor-icons/react/ssr';
+import { WaveformIcon } from '@phosphor-icons/react/ssr';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
 
@@ -21,11 +21,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
             </span>
           </Link>
 
-          <div className="flex items-center gap-2 text-[#4b5563]">
-            <LockKeyIcon className="h-4 w-4 text-[#4f46e5]" weight="duotone" aria-hidden="true" />
-            <span className="hidden font-mono text-[11px] font-medium sm:inline">
-              Private audio workspace
-            </span>
+          <div className="flex items-center">
             <UserButton />
           </div>
         </div>

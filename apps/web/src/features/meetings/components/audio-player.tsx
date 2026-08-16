@@ -78,7 +78,7 @@ export function AudioPlayer({
   }
 
   return (
-    <div className="mt-5 border-t border-emerald-200 pt-5">
+    <div className="mt-2 pt-2">
       <audio
         ref={audioRef}
         src={source ?? undefined}
@@ -106,12 +106,12 @@ export function AudioPlayer({
           toast({ variant: 'destructive', title: "We couldn't play the recording." });
         }}
       />
-      <div className="grid items-center gap-3 sm:grid-cols-[44px_auto_minmax(160px,1fr)_112px]">
+      <div className="grid items-center gap-3 sm:grid-cols-[36px_auto_minmax(160px,1fr)_92px]">
         <button
           type="button"
           onClick={togglePlayback}
           disabled={playbackMutation.isPending}
-          className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#4f46e5] text-white transition hover:bg-[#4338ca] disabled:cursor-wait disabled:opacity-60"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-[#4f46e5] text-white transition hover:bg-[#4338ca] disabled:cursor-wait disabled:opacity-60"
           aria-label={playing ? 'Pause recording' : 'Play recording'}
         >
           {playing ? (
@@ -125,7 +125,7 @@ export function AudioPlayer({
         </span>
         <label className="flex min-w-0 items-center gap-2">
           <span className="sr-only">Recording position</span>
-          <SpeakerHighIcon className="h-4 w-4 shrink-0 text-[#047857]" weight="duotone" />
+          <SpeakerHighIcon className="h-4 w-4 shrink-0 text-primary" weight="duotone" />
           <input
             type="range"
             min={0}
@@ -133,7 +133,7 @@ export function AudioPlayer({
             step={0.1}
             value={Math.min(currentTime, Math.max(duration, 1))}
             onChange={(event) => seek(Number(event.target.value))}
-            className="h-11 min-w-0 flex-1 accent-[#4f46e5]"
+            className="h-9 min-w-0 flex-1 accent-[#4f46e5]"
           />
         </label>
         <div>
@@ -148,7 +148,7 @@ export function AudioPlayer({
             }}
           >
             <SelectTrigger
-              className="min-h-11 border-[#d1d5db] bg-white shadow-none"
+              className="h-9 border-[#d1d5db] bg-white shadow-none"
               aria-labelledby={`playback-speed-${meetingId}`}
             >
               <SelectValue />

@@ -101,7 +101,7 @@ function getStepState(
   return processing?.status === 'FAILED' ? 'failed' : 'current';
 }
 
-export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
+export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeting: Meeting; compact?: boolean }>) {
   const statusQuery = useMeetingStatus(meeting.id);
   const processMutation = useProcessMeeting();
   const retryMutation = useRetryMeeting();
@@ -114,6 +114,50 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
     processMutation.isPending || retryMutation.isPending || reprocessMutation.isPending;
 
   if (!meeting.audioPath) return null;
+
+  if (compact && status === 'COMPLETED') {
+    return (
+      <section className="mt-5 border-t pt-5" aria-labelledby="reprocess-title">
+        <h3 id="reprocess-title" className="text-sm font-semibold text-[#111827]">
+          Reprocess meeting
+        </h3>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+          Retranscribe this recording and replace its generated summary, decisions, and action
+          items.
+        </p>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button
+              type="button"
+              disabled={isPending}
+              className="mt-4 inline-flex h-9 items-center gap-2 rounded-md border bg-white px-3 text-sm font-medium text-[#374151] transition hover:bg-muted disabled:opacity-60"
+            >
+              <ArrowClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
+              {reprocessMutation.isPending ? 'Queueing…' : 'Reprocess from recording'}
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogTitle>Reprocess this meeting?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will retranscribe the recording and replace the generated summary, decisions,
+              and action items. Your recording remains private.
+            </AlertDialogDescription>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151]">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => reprocessMutation.mutate(meeting.id)}
+                className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+              >
+                Start reprocessing
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
+      </section>
+    );
+  }
 
   return (
     <section

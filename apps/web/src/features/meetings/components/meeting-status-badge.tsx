@@ -45,7 +45,7 @@ export function MeetingStatusBadge({ status }: Readonly<{ status: MeetingStatusV
   return (
     <span
       className={cn(
-        'inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.08em]',
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[11px] font-medium',
         config.className,
       )}
     >
