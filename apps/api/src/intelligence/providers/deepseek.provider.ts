@@ -33,7 +33,12 @@ export class DeepSeekProvider {
 
     this.model = config.get<string>('DEEPSEEK_MODEL')?.trim() || DEFAULT_DEEPSEEK_MODEL;
     const baseURL = config.get<string>('DEEPSEEK_BASE_URL')?.trim() || DEFAULT_DEEPSEEK_BASE_URL;
-    this.client = new OpenAI({ apiKey, baseURL });
+    this.client = new OpenAI({
+      apiKey,
+      baseURL,
+      timeout: config.get<number>('DEEPSEEK_TIMEOUT_MS', 120_000),
+      maxRetries: 0,
+    });
   }
 
   get modelName(): string {

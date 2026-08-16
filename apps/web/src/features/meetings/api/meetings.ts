@@ -1,20 +1,25 @@
 import type {
   ConfirmAudioUploadInput,
   CreateMeetingInput,
+  CreateMeetingShareInput,
   RequestAudioUploadInput,
   UpdateActionItemInput,
   UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
+  AudioPlaybackAuthorization,
   ActionItem,
   MeetingIntelligence,
   Meeting,
-  MeetingListItem,
+  MeetingListResponse,
   MeetingProcessResponse,
   MeetingStatusResponse,
   Transcript,
   TranscriptSpeaker,
+  MeetingShareCreated,
+  MeetingShareSummary,
+  PublicMeetingShare,
 } from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
 
@@ -23,9 +28,22 @@ export async function createMeeting(input: CreateMeetingInput): Promise<Meeting>
   return data;
 }
 
-export async function getMeetings(): Promise<MeetingListItem[]> {
-  const { data } = await apiClient.get<MeetingListItem[]>('/meetings');
+export async function getMeetings(cursor?: string): Promise<MeetingListResponse> {
+  const { data } = await apiClient.get<MeetingListResponse>('/meetings', {
+    params: { limit: 20, ...(cursor ? { cursor } : {}) },
+  });
   return data;
+}
+
+export async function getAudioPlaybackUrl(meetingId: string): Promise<AudioPlaybackAuthorization> {
+  const { data } = await apiClient.get<AudioPlaybackAuthorization>(
+    `/meetings/${meetingId}/audio/url`,
+  );
+  return data;
+}
+
+export async function deleteMeetingAudio(meetingId: string): Promise<void> {
+  await apiClient.delete(`/meetings/${meetingId}/audio`);
 }
 
 export async function getMeeting(id: string): Promise<Meeting> {
@@ -63,6 +81,11 @@ export async function processMeeting(meetingId: string): Promise<MeetingProcessR
 
 export async function retryMeeting(meetingId: string): Promise<MeetingProcessResponse> {
   const { data } = await apiClient.post<MeetingProcessResponse>(`/meetings/${meetingId}/retry`);
+  return data;
+}
+
+export async function reprocessMeeting(meetingId: string): Promise<MeetingProcessResponse> {
+  const { data } = await apiClient.post<MeetingProcessResponse>(`/meetings/${meetingId}/reprocess`);
   return data;
 }
 
@@ -106,5 +129,30 @@ export async function updateMeetingSpeaker(
     `/meetings/${meetingId}/speakers/${speakerId}`,
     input,
   );
+  return data;
+}
+
+export async function createMeetingShare(
+  meetingId: string,
+  input: CreateMeetingShareInput,
+): Promise<MeetingShareCreated> {
+  const { data } = await apiClient.post<MeetingShareCreated>(
+    `/meetings/${meetingId}/shares`,
+    input,
+  );
+  return data;
+}
+
+export async function getMeetingShares(meetingId: string): Promise<MeetingShareSummary[]> {
+  const { data } = await apiClient.get<MeetingShareSummary[]>(`/meetings/${meetingId}/shares`);
+  return data;
+}
+
+export async function revokeMeetingShare(meetingId: string, shareId: string): Promise<void> {
+  await apiClient.delete(`/meetings/${meetingId}/shares/${shareId}`);
+}
+
+export async function getPublicMeetingShare(token: string): Promise<PublicMeetingShare> {
+  const { data } = await apiClient.get<PublicMeetingShare>(`/shares/${encodeURIComponent(token)}`);
   return data;
 }

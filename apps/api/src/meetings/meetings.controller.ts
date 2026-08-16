@@ -9,23 +9,28 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { MeetingRecord } from '@meeting-intelligence/database';
 import {
   confirmAudioUploadSchema,
   createMeetingSchema,
+  meetingListQuerySchema,
   requestAudioUploadSchema,
   updateMeetingSpeakerSchema,
   type ConfirmAudioUploadInput,
   type CreateMeetingInput,
+  type MeetingListQueryInput,
   type RequestAudioUploadInput,
   type UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
+  AudioPlaybackAuthorization,
   MeetingProcessResponse,
-  MeetingListItem,
+  MeetingListResponse,
   MeetingStatusResponse,
   TranscriptResponse,
   TranscriptSpeaker,
@@ -50,8 +55,11 @@ export class MeetingsController {
   }
 
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser): Promise<MeetingListItem[]> {
-    return this.meetingsService.findAll(user.clerkUserId);
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(meetingListQuerySchema)) query: MeetingListQueryInput,
+  ): Promise<MeetingListResponse> {
+    return this.meetingsService.findAll(user.clerkUserId, query);
   }
 
   @Get(':id')
@@ -89,6 +97,7 @@ export class MeetingsController {
   }
 
   @Post(':id/process')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   process(
     @CurrentUser() user: AuthenticatedUser,
@@ -98,6 +107,7 @@ export class MeetingsController {
   }
 
   @Post(':id/retry')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   retry(
     @CurrentUser() user: AuthenticatedUser,
@@ -107,6 +117,7 @@ export class MeetingsController {
   }
 
   @Post(':id/reprocess-transcription')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @HttpCode(HttpStatus.ACCEPTED)
   reprocessTranscription(
     @CurrentUser() user: AuthenticatedUser,
@@ -115,7 +126,18 @@ export class MeetingsController {
     return this.meetingsService.reprocessTranscription(user.clerkUserId, id);
   }
 
+  @Post(':id/reprocess')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.ACCEPTED)
+  reprocess(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<MeetingProcessResponse> {
+    return this.meetingsService.reprocessTranscription(user.clerkUserId, id);
+  }
+
   @Post(':id/audio/upload-url')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   createAudioUpload(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
@@ -125,12 +147,31 @@ export class MeetingsController {
   }
 
   @Post(':id/audio/confirm')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   confirmAudioUpload(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body(new ZodValidationPipe(confirmAudioUploadSchema)) input: ConfirmAudioUploadInput,
   ): Promise<MeetingRecord> {
     return this.meetingsService.confirmAudioUpload(user.clerkUserId, id, input);
+  }
+
+  @Get(':id/audio/url')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  getAudioUrl(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<AudioPlaybackAuthorization> {
+    return this.meetingsService.getAudioPlaybackUrl(user.clerkUserId, id);
+  }
+
+  @Delete(':id/audio')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeAudio(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<void> {
+    await this.meetingsService.removeAudio(user.clerkUserId, id);
   }
 
   @Delete(':id')

@@ -5,7 +5,6 @@ import { createMeetingSchema, type CreateMeetingInput } from '@meeting-intellige
 import { CalendarPlusIcon, PlusIcon, XIcon } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { getApiErrorMessage } from '@/lib/api-client';
 import { useCreateMeeting } from '../hooks/use-meetings';
 
 export function CreateMeetingForm() {
@@ -113,14 +112,6 @@ export function CreateMeetingForm() {
         {errors.title ? (
           <p className="mt-2 text-sm font-medium text-red-700" role="alert">
             {errors.title.message}
-          </p>
-        ) : null}
-        {createMutation.isError ? (
-          <p
-            className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-            role="alert"
-          >
-            {getApiErrorMessage(createMutation.error, 'Unable to create the meeting.')}
           </p>
         ) : null}
         <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

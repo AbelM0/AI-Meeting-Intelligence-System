@@ -1,30 +1,37 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ActionItem,
   AudioUploadAuthorization,
   MeetingIntelligence,
-  MeetingListItem,
   Transcript,
 } from '@meeting-intelligence/types';
 import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
 import { useCallback, useRef, useState } from 'react';
+import { toast } from '@/hooks/use-toast';
+import { getApiErrorMessage } from '@/lib/api-client';
 import {
   confirmAudioUpload,
   createMeeting,
   deleteMeeting,
+  deleteMeetingAudio,
+  getAudioPlaybackUrl,
   getMeeting,
   getMeetingIntelligence,
   getMeetingStatus,
   getMeetingTranscript,
   getMeetings,
   processMeeting,
+  reprocessMeeting,
   requestAudioUpload,
   retryMeeting,
   updateActionItem,
   updateActionItemStatus,
   updateMeetingSpeaker,
+  createMeetingShare,
+  getMeetingShares,
+  revokeMeetingShare,
 } from '../api/meetings';
 import {
   uploadMeetingAudio,
@@ -38,6 +45,7 @@ export const meetingQueryKeys = {
   status: (id: string) => ['meetings', id, 'status'] as const,
   transcript: (id: string) => ['meetings', id, 'transcript'] as const,
   intelligence: (id: string) => ['meetings', id, 'intelligence'] as const,
+  shares: (id: string) => ['meetings', id, 'shares'] as const,
 };
 
 const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
@@ -48,9 +56,11 @@ const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
 ];
 
 export function useMeetings() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: meetingQueryKeys.all,
-    queryFn: getMeetings,
+    queryFn: ({ pageParam }) => getMeetings(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
 }
 
@@ -92,12 +102,16 @@ export function useMeetingIntelligence(id: string, enabled = true) {
   });
 }
 
-function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) {
+function useProcessingMutation(
+  action: (meetingId: string) => Promise<unknown>,
+  successMessage: string,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: action,
     onSuccess: async (_, meetingId) => {
+      toast({ title: successMessage });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.status(meetingId) }),
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
@@ -105,6 +119,12 @@ function useProcessingMutation(action: (meetingId: string) => Promise<unknown>) 
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.transcript(meetingId) }),
         queryClient.removeQueries({ queryKey: meetingQueryKeys.intelligence(meetingId) }),
       ]);
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Processing could not be started. Try again.'),
+      });
     },
   });
 }
@@ -139,12 +159,22 @@ export function useUpdateActionItemStatus(meetingId: string) {
       );
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(meetingQueryKeys.intelligence(meetingId), context.previous);
       }
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The action item could not be updated.'),
+      });
     },
     onSuccess: (updatedActionItem) => {
+      toast({
+        title:
+          updatedActionItem.status === 'COMPLETED'
+            ? 'Action item completed.'
+            : 'Action item reopened.',
+      });
       queryClient.setQueryData<MeetingIntelligence>(
         meetingQueryKeys.intelligence(meetingId),
         (current) =>
@@ -172,6 +202,7 @@ export function useUpdateActionItem(meetingId: string) {
       input: Parameters<typeof updateActionItem>[1];
     }) => updateActionItem(actionItemId, input),
     onSuccess: (updatedActionItem) => {
+      toast({ title: 'Action item updated.' });
       queryClient.setQueryData<MeetingIntelligence>(
         meetingQueryKeys.intelligence(meetingId),
         (current) =>
@@ -185,6 +216,12 @@ export function useUpdateActionItem(meetingId: string) {
             : current,
       );
     },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The action item could not be saved.'),
+      });
+    },
   });
 }
 
@@ -194,6 +231,7 @@ export function useUpdateMeetingSpeaker(meetingId: string) {
     mutationFn: ({ speakerId, name }: { speakerId: string; name: string | null }) =>
       updateMeetingSpeaker(meetingId, speakerId, { name }),
     onSuccess: (updatedSpeaker) => {
+      toast({ title: 'Speaker renamed.' });
       queryClient.setQueryData<Transcript>(meetingQueryKeys.transcript(meetingId), (current) =>
         current
           ? {
@@ -210,15 +248,25 @@ export function useUpdateMeetingSpeaker(meetingId: string) {
           : current,
       );
     },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The speaker name could not be saved.'),
+      });
+    },
   });
 }
 
 export function useProcessMeeting() {
-  return useProcessingMutation(processMeeting);
+  return useProcessingMutation(processMeeting, 'Processing started.');
 }
 
 export function useRetryMeeting() {
-  return useProcessingMutation(retryMeeting);
+  return useProcessingMutation(retryMeeting, 'Retry started.');
+}
+
+export function useReprocessMeeting() {
+  return useProcessingMutation(reprocessMeeting, 'Meeting reprocessing started.');
 }
 
 export function useCreateMeeting() {
@@ -227,8 +275,15 @@ export function useCreateMeeting() {
   return useMutation({
     mutationFn: createMeeting,
     onSuccess: async (meeting) => {
+      toast({ title: 'Meeting created.' });
       queryClient.setQueryData(meetingQueryKeys.detail(meeting.id), meeting);
       await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Unable to create the meeting.'),
+      });
     },
   });
 }
@@ -239,11 +294,15 @@ export function useDeleteMeeting() {
   return useMutation({
     mutationFn: deleteMeeting,
     onSuccess: async (_, id) => {
-      queryClient.setQueryData<MeetingListItem[]>(meetingQueryKeys.all, (meetings) =>
-        meetings?.filter((meeting) => meeting.id !== id),
-      );
+      toast({ title: 'Meeting deleted.' });
       queryClient.removeQueries({ queryKey: meetingQueryKeys.detail(id) });
       await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Unable to delete the meeting.'),
+      });
     },
   });
 }
@@ -340,6 +399,7 @@ export function useAudioUpload(meetingId: string) {
       return confirm(file, authorization);
     },
     onSuccess: async (meeting) => {
+      toast({ title: 'Upload completed.' });
       queryClient.setQueryData(meetingQueryKeys.detail(meetingId), meeting);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
@@ -350,6 +410,13 @@ export function useAudioUpload(meetingId: string) {
       fileRef.current = null;
       setFailure(null);
       setStage('success');
+    },
+    onError: (error) => {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Upload failed. Please try again.'),
+      });
     },
   });
 
@@ -393,4 +460,79 @@ export function useAudioUpload(meetingId: string) {
   }, [failure, mutation]);
 
   return { ...mutation, stage, progress, failure, selectFile, reset, cancel, retry };
+}
+
+export function useAudioPlaybackUrl() {
+  return useMutation({
+    mutationFn: getAudioPlaybackUrl,
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, "We couldn't load the recording."),
+      });
+    },
+  });
+}
+
+export function useDeleteMeetingAudio(meetingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteMeetingAudio(meetingId),
+    onSuccess: async () => {
+      toast({ title: 'Recording deleted.' });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.detail(meetingId) }),
+        queryClient.invalidateQueries({ queryKey: meetingQueryKeys.all }),
+      ]);
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The recording could not be deleted.'),
+      });
+    },
+  });
+}
+
+export function useMeetingShares(meetingId: string) {
+  return useQuery({
+    queryKey: meetingQueryKeys.shares(meetingId),
+    queryFn: () => getMeetingShares(meetingId),
+    enabled: Boolean(meetingId),
+  });
+}
+
+export function useCreateMeetingShare(meetingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: Parameters<typeof createMeetingShare>[1]) =>
+      createMeetingShare(meetingId, input),
+    onSuccess: async () => {
+      toast({ title: 'Share link created.' });
+      await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.shares(meetingId) });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The share link could not be created.'),
+      });
+    },
+  });
+}
+
+export function useRevokeMeetingShare(meetingId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (shareId: string) => revokeMeetingShare(meetingId, shareId),
+    onSuccess: async () => {
+      toast({ title: 'Share link revoked.' });
+      await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.shares(meetingId) });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'The share link could not be revoked.'),
+      });
+    },
+  });
 }

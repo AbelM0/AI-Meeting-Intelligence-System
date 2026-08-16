@@ -63,8 +63,12 @@ function SpeakerManager({
   async function save(speaker: TranscriptSpeaker) {
     const normalizedName = name.trim();
     if (!normalizedName && !speaker.name) return;
-    await mutation.mutateAsync({ speakerId: speaker.id, name: normalizedName || null });
-    setEditingId(null);
+    try {
+      await mutation.mutateAsync({ speakerId: speaker.id, name: normalizedName || null });
+      setEditingId(null);
+    } catch {
+      // The mutation presents the server-safe error through the global toast.
+    }
   }
 
   return (
@@ -149,11 +153,6 @@ function SpeakerManager({
           </li>
         ))}
       </ul>
-      {mutation.isError ? (
-        <p className="mt-2 text-sm text-[#b91c1c]" role="alert">
-          {getApiErrorMessage(mutation.error, 'The speaker name could not be saved.')}
-        </p>
-      ) : null}
     </section>
   );
 }

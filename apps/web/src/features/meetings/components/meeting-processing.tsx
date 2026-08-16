@@ -9,9 +9,22 @@ import {
   SpinnerGapIcon,
   WarningCircleIcon,
 } from '@phosphor-icons/react';
-import { getApiErrorMessage } from '@/lib/api-client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
-import { useMeetingStatus, useProcessMeeting, useRetryMeeting } from '../hooks/use-meetings';
+import {
+  useMeetingStatus,
+  useProcessMeeting,
+  useReprocessMeeting,
+  useRetryMeeting,
+} from '../hooks/use-meetings';
 
 const activeStatuses = ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'] as const;
 
@@ -92,12 +105,13 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
   const statusQuery = useMeetingStatus(meeting.id);
   const processMutation = useProcessMeeting();
   const retryMutation = useRetryMeeting();
+  const reprocessMutation = useReprocessMeeting();
   const status = statusQuery.data?.status ?? meeting.status;
   const processing = statusQuery.data?.processing ?? null;
   const progress = processing?.progress ?? 0;
   const isActive = activeStatuses.some((activeStatus) => activeStatus === status);
-  const isPending = processMutation.isPending || retryMutation.isPending;
-  const actionError = processMutation.error ?? retryMutation.error;
+  const isPending =
+    processMutation.isPending || retryMutation.isPending || reprocessMutation.isPending;
 
   if (!meeting.audioPath) return null;
 
@@ -164,15 +178,6 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
               {processing.error}
             </div>
           ) : null}
-          {actionError ? (
-            <div
-              className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
-              role="alert"
-            >
-              {getApiErrorMessage(actionError, 'Processing could not be started. Try again.')}
-            </div>
-          ) : null}
-
           {status === 'UPLOADED' || status === 'FAILED' ? (
             <button
               type="button"
@@ -199,6 +204,37 @@ export function MeetingProcessing({ meeting }: Readonly<{ meeting: Meeting }>) {
                   ? 'Retry analysis'
                   : 'Process meeting'}
             </button>
+          ) : null}
+          {status === 'COMPLETED' || status === 'FAILED' ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isPending || isActive}
+                  className="mt-3 min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151] transition hover:border-[#9ca3af] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Reprocess from recording
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>Reprocess this meeting?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will retranscribe the recording and replace the generated summary, decisions,
+                  and action items. Your recording remains private.
+                </AlertDialogDescription>
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151]">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => reprocessMutation.mutate(meeting.id)}
+                    className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+                  >
+                    Start reprocessing
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : null}
         </div>
 

@@ -35,7 +35,7 @@ const PERSISTING_STAGE: PipelineStage = {
 };
 
 @Injectable()
-@Processor(MEETING_PROCESSING_QUEUE, { concurrency: 2 })
+@Processor(MEETING_PROCESSING_QUEUE, { concurrency: workerConcurrency() })
 export class MeetingProcessor extends WorkerHost {
   private readonly logger = new Logger(MeetingProcessor.name);
 
@@ -274,4 +274,9 @@ export class MeetingProcessor extends WorkerHost {
     }
     return "We couldn't finish processing this meeting. Your transcript is safe. Retry processing.";
   }
+}
+
+function workerConcurrency(): number {
+  const value = Number(process.env.MEETING_WORKER_CONCURRENCY ?? '2');
+  return Number.isInteger(value) && value > 0 ? value : 2;
 }

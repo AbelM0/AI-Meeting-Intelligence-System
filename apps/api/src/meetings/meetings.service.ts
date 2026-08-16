@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  HttpStatus,
   Logger,
   NotFoundException,
   ServiceUnavailableException,
@@ -21,14 +22,16 @@ import {
   getAudioExtension,
   type ConfirmAudioUploadInput,
   type CreateMeetingInput,
+  type MeetingListQueryInput,
   type RequestAudioUploadInput,
   type UpdateMeetingSpeakerInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
+  AudioPlaybackAuthorization,
   MeetingProcessResponse,
   MeetingStatusResponse,
-  MeetingListItem,
+  MeetingListResponse,
   TranscriptSpeaker,
   TranscriptResponse,
 } from '@meeting-intelligence/types';
@@ -37,6 +40,7 @@ import { PrismaService } from '../database/prisma.service';
 import { MeetingQueueService } from '../jobs/meeting-queue.service';
 import { StorageService } from '../storage/storage.service';
 import { TranscriptService } from '../transcript/transcript.service';
+import { AppError } from '../common/errors/app-error';
 
 @Injectable()
 export class MeetingsService {
@@ -54,35 +58,125 @@ export class MeetingsService {
     return this.prisma.meeting.create({ data: { ...input, userId } });
   }
 
-  async findAll(userId: string): Promise<MeetingListItem[]> {
+  async findAll(userId: string, query: MeetingListQueryInput): Promise<MeetingListResponse> {
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : null;
     const meetings = await this.prisma.meeting.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
+      where: {
+        userId,
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.createdAt } },
+                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: query.limit + 1,
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        duration: true,
+        createdAt: true,
         summary: { select: { overview: true } },
         _count: { select: { decisions: true, actionItems: true, speakers: true } },
       },
     });
 
-    return meetings.map(({ _count, summary, ...meeting }) => ({
+    const hasMore = meetings.length > query.limit;
+    if (hasMore) meetings.pop();
+    const items = meetings.map(({ _count, summary, ...meeting }) => ({
       ...meeting,
       createdAt: meeting.createdAt.toISOString(),
-      updatedAt: meeting.updatedAt.toISOString(),
       decisionCount: _count.decisions,
       actionItemCount: _count.actionItems,
       speakerCount: _count.speakers,
       summaryPreview: summary?.overview.slice(0, 180) ?? null,
     }));
+    const last = meetings.at(-1);
+    return {
+      items,
+      nextCursor: hasMore && last ? this.encodeCursor(last.createdAt, last.id) : null,
+    };
   }
 
   async findOne(userId: string, id: string): Promise<MeetingRecord> {
     const meeting = await this.prisma.meeting.findFirst({ where: { id, userId } });
 
     if (!meeting) {
-      throw new NotFoundException('Meeting not found.');
+      throw new AppError('MEETING_NOT_FOUND', 'Meeting not found.', HttpStatus.NOT_FOUND);
     }
 
     return meeting;
+  }
+
+  async getAudioPlaybackUrl(userId: string, id: string): Promise<AudioPlaybackAuthorization> {
+    const meeting = await this.findOne(userId, id);
+    if (!meeting.audioPath) {
+      throw new AppError(
+        'AUDIO_NOT_FOUND',
+        'This meeting does not have a recording.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const expiresIn = 300;
+    const url = await this.storage.createSignedReadUrl(meeting.audioPath, expiresIn);
+    return { url, expiresIn };
+  }
+
+  async removeAudio(userId: string, id: string): Promise<void> {
+    const meeting = await this.findOne(userId, id);
+    if (!meeting.audioPath) {
+      throw new AppError(
+        'AUDIO_NOT_FOUND',
+        'This meeting does not have a recording.',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    const activeStatuses: MeetingStatus[] = [
+      MeetingStatus.QUEUED,
+      MeetingStatus.PREPROCESSING,
+      MeetingStatus.TRANSCRIBING,
+      MeetingStatus.ANALYZING,
+    ];
+    const active = activeStatuses.includes(meeting.status);
+    if (active) {
+      throw new AppError(
+        'MEETING_ALREADY_PROCESSING',
+        'The recording cannot be deleted while processing is active.',
+        HttpStatus.CONFLICT,
+      );
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.processingJob.deleteMany({ where: { meetingId: id } }),
+      this.prisma.transcript.deleteMany({ where: { meetingId: id } }),
+      this.prisma.meetingSpeaker.deleteMany({ where: { meetingId: id } }),
+      this.prisma.meetingSummary.deleteMany({ where: { meetingId: id } }),
+      this.prisma.decision.deleteMany({ where: { meetingId: id } }),
+      this.prisma.actionItem.deleteMany({ where: { meetingId: id } }),
+      this.prisma.meeting.update({
+        where: { id },
+        data: {
+          audioPath: null,
+          audioFileName: null,
+          audioMimeType: null,
+          fileSize: null,
+          duration: null,
+          status: MeetingStatus.UPLOADED,
+        },
+      }),
+    ]);
+    try {
+      await this.storage.removeObject(meeting.audioPath);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({ meetingId: id, operation: 'audio_cleanup', outcome: 'failed' }),
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
   }
 
   async getStatus(userId: string, id: string): Promise<MeetingStatusResponse> {
@@ -167,15 +261,42 @@ export class MeetingsService {
     id: string,
     input: RequestAudioUploadInput,
   ): Promise<AudioUploadAuthorization> {
-    await this.findOne(userId, id);
+    const meeting = await this.findOne(userId, id);
     const metadata = this.parseUploadRequest(input);
     const extension = getAudioExtension(metadata.fileName);
 
     if (!extension) {
-      throw new BadRequestException('Unsupported audio file extension.');
+      throw new AppError(
+        'UNSUPPORTED_AUDIO_FORMAT',
+        'This audio format is not supported.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
-    const path = `users/${userId}/meetings/${id}/${randomUUID()}.${extension}`;
+    const folder = `users/${userId}/meetings/${id}`;
+    const maxAgeHours = this.config.get<number>('ABANDONED_UPLOAD_MAX_AGE_HOURS', 24);
+    try {
+      const cleaned = await this.storage.cleanupAbandonedUploads(
+        folder,
+        meeting.audioPath,
+        new Date(Date.now() - maxAgeHours * 60 * 60 * 1_000),
+      );
+      if (cleaned > 0) {
+        this.logger.log(
+          JSON.stringify({ meetingId: id, operation: 'abandoned_upload_cleanup', cleaned }),
+        );
+      }
+    } catch {
+      this.logger.warn(
+        JSON.stringify({
+          meetingId: id,
+          operation: 'abandoned_upload_cleanup',
+          outcome: 'deferred',
+        }),
+      );
+    }
+
+    const path = `${folder}/${randomUUID()}.${extension}`;
     return this.storage.createSignedUpload(path);
   }
 
@@ -339,7 +460,11 @@ export class MeetingsService {
       meeting.processingJob?.status === ProcessingJobStatus.PROCESSING;
 
     if (activeMeetingStatuses.includes(meeting.status) || activeJob) {
-      throw new ConflictException('This meeting is already being processed.');
+      throw new AppError(
+        'MEETING_ALREADY_PROCESSING',
+        'This meeting is already being processed.',
+        HttpStatus.CONFLICT,
+      );
     }
 
     if (forceTranscription) {
@@ -370,36 +495,51 @@ export class MeetingsService {
       : retry
         ? MeetingStatus.FAILED
         : MeetingStatus.UPLOADED;
-    await this.prisma.$transaction(async (transaction) => {
-      const updated = await transaction.meeting.updateMany({
-        where: { id, status: expectedStatus },
-        data: { status: MeetingStatus.QUEUED },
-      });
+    await this.prisma.$transaction(
+      async (transaction) => {
+        const activeCount = await transaction.meeting.count({
+          where: { userId, status: { in: activeMeetingStatuses } },
+        });
+        const maxActive = this.config.get<number>('MAX_ACTIVE_MEETINGS_PER_USER', 3);
+        if (activeCount >= maxActive) {
+          throw new AppError(
+            'PROCESSING_LIMIT_REACHED',
+            `You can process up to ${maxActive} meetings at a time. Try again when one finishes.`,
+            HttpStatus.TOO_MANY_REQUESTS,
+          );
+        }
 
-      if (updated.count !== 1) {
-        throw new ConflictException(
-          'This meeting processing state changed. Refresh and try again.',
-        );
-      }
+        const updated = await transaction.meeting.updateMany({
+          where: { id, status: expectedStatus },
+          data: { status: MeetingStatus.QUEUED },
+        });
 
-      await transaction.processingJob.upsert({
-        where: { meetingId: id },
-        create: {
-          meetingId: id,
-          status: ProcessingJobStatus.PENDING,
-          progress: 0,
-          currentStage: MeetingStatus.QUEUED,
-        },
-        update: {
-          status: ProcessingJobStatus.PENDING,
-          progress: 0,
-          currentStage: MeetingStatus.QUEUED,
-          error: null,
-          startedAt: null,
-          completedAt: null,
-        },
-      });
-    });
+        if (updated.count !== 1) {
+          throw new ConflictException(
+            'This meeting processing state changed. Refresh and try again.',
+          );
+        }
+
+        await transaction.processingJob.upsert({
+          where: { meetingId: id },
+          create: {
+            meetingId: id,
+            status: ProcessingJobStatus.PENDING,
+            progress: 0,
+            currentStage: MeetingStatus.QUEUED,
+          },
+          update: {
+            status: ProcessingJobStatus.PENDING,
+            progress: 0,
+            currentStage: MeetingStatus.QUEUED,
+            error: null,
+            startedAt: null,
+            completedAt: null,
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   private async enqueuePreparedMeeting(
@@ -432,5 +572,36 @@ export class MeetingsService {
     }
 
     return { meetingId: id, status: MeetingStatus.QUEUED };
+  }
+
+  private encodeCursor(createdAt: Date, id: string): string {
+    return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id })).toString(
+      'base64url',
+    );
+  }
+
+  private decodeCursor(cursor: string): { createdAt: Date; id: string } {
+    try {
+      const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+        createdAt?: unknown;
+        id?: unknown;
+      };
+      const createdAt = typeof value.createdAt === 'string' ? new Date(value.createdAt) : null;
+      if (
+        !createdAt ||
+        Number.isNaN(createdAt.getTime()) ||
+        typeof value.id !== 'string' ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.id)
+      ) {
+        throw new Error('invalid cursor');
+      }
+      return { createdAt, id: value.id };
+    } catch {
+      throw new AppError(
+        'INVALID_CURSOR',
+        'The meeting list cursor is invalid.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

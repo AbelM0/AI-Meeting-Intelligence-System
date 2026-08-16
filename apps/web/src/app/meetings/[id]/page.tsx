@@ -10,7 +10,10 @@ export default async function MeetingDetailsPage({ params }: MeetingDetailsPageP
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+      <div
+        data-print-root
+        className="mx-auto max-w-[1440px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10"
+      >
         <MeetingDetails id={id} />
       </div>
     </AppShell>

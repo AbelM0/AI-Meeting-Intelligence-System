@@ -78,19 +78,21 @@ function ActionItemRow({
   return (
     <li className="border-t border-[#e5e7eb] py-6 first:border-t-0">
       <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={completed}
-          disabled={mutation.isPending}
-          onChange={() =>
-            mutation.mutate({
-              actionItemId: actionItem.id,
-              status: completed ? 'OPEN' : 'COMPLETED',
-            })
-          }
-          className="mt-1 h-5 w-5 shrink-0 rounded border-[#9ca3af] accent-[#4f46e5]"
-          aria-label={`${completed ? 'Reopen' : 'Complete'} action item: ${actionItem.task}`}
-        />
+        <label className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-[#f3f4f6]">
+          <input
+            type="checkbox"
+            checked={completed}
+            disabled={mutation.isPending}
+            onChange={() =>
+              mutation.mutate({
+                actionItemId: actionItem.id,
+                status: completed ? 'OPEN' : 'COMPLETED',
+              })
+            }
+            className="h-5 w-5 rounded border-[#9ca3af] accent-[#4f46e5]"
+            aria-label={`${completed ? 'Reopen' : 'Complete'} action item: ${actionItem.task}`}
+          />
+        </label>
         <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <h3
@@ -127,14 +129,6 @@ function ActionItemRow({
               <summary className="cursor-pointer font-medium text-[#4b5563]">Evidence</summary>
               <p className="mt-2 max-w-[72ch] leading-6">“{actionItem.evidence}”</p>
             </details>
-          ) : null}
-          {mutation.isError ? (
-            <p className="mt-2 text-sm text-[#b91c1c]" role="alert">
-              {getApiErrorMessage(
-                mutation.error,
-                'Completion status could not be updated. The change was rolled back.',
-              )}
-            </p>
           ) : null}
           <EvidenceLink item={actionItem} onViewTranscript={onViewTranscript} />
         </div>

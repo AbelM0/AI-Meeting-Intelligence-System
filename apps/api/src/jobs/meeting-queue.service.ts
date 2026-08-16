@@ -13,8 +13,12 @@ import { producerRedisConnection } from './redis-connection';
 export class MeetingQueueService implements OnModuleDestroy {
   private readonly logger = new Logger(MeetingQueueService.name);
   private readonly queue: Queue<MeetingProcessingJobData>;
+  private readonly attempts: number;
+  private readonly backoffMs: number;
 
   constructor(config: ConfigService) {
+    this.attempts = config.get<number>('MEETING_JOB_ATTEMPTS', 3);
+    this.backoffMs = config.get<number>('MEETING_JOB_BACKOFF_MS', 2_000);
     this.queue = new Queue<MeetingProcessingJobData>(MEETING_PROCESSING_QUEUE, {
       connection: producerRedisConnection(config),
     });
@@ -51,14 +55,20 @@ export class MeetingQueueService implements OnModuleDestroy {
       },
       {
         jobId,
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 1_000 },
+        attempts: this.attempts,
+        backoff: { type: 'exponential', delay: this.backoffMs },
         removeOnComplete: { age: 3_600, count: 100 },
         removeOnFail: { age: 86_400, count: 100 },
       },
     );
 
     this.logger.log(`Queued meeting ${meetingId} as ${jobId}.`);
+  }
+
+  async ping(): Promise<void> {
+    await this.waitUntilReady();
+    const client = await this.queue.client;
+    await (client as unknown as { ping(): Promise<unknown> }).ping();
   }
 
   private async waitUntilReady(): Promise<void> {

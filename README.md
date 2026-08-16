@@ -90,6 +90,7 @@ the web image.
 - Frontend: <http://localhost:3000>
 - Backend: <http://localhost:3001>
 - Health check: <http://localhost:3001/api/v1/health>
+- Readiness check: <http://localhost:3001/api/v1/health/ready>
 
 ## Environment configuration
 
@@ -125,35 +126,47 @@ DELETE FROM "User" WHERE "id" = 'legacy_unassigned' AND NOT EXISTS (
 
 Deletion webhooks deliberately anonymize the local profile while preserving owned meetings for retention. They never cascade-delete meeting data.
 
-| Variable                            | Purpose                                               |
-| ----------------------------------- | ----------------------------------------------------- |
-| `DATABASE_URL`                      | PostgreSQL/Supabase connection string used by Prisma  |
-| `FRONTEND_URL`                      | Allowed browser origin for API CORS                   |
-| `CLERK_AUTHORIZED_PARTIES`          | Allowed Clerk token originating frontend origins      |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Browser-safe Clerk publishable key                    |
-| `CLERK_PUBLISHABLE_KEY`             | Backend Clerk publishable key                         |
-| `CLERK_SECRET_KEY`                  | Server-only Clerk API and verification secret         |
-| `CLERK_JWT_KEY`                     | Optional server-only PEM key for offline verification |
-| `CLERK_WEBHOOK_SECRET`              | Server-only Clerk webhook signing secret              |
-| `NEXT_PUBLIC_API_URL`               | Browser-facing base URL for the REST API              |
-| `API_PORT`, `WEB_PORT`              | Host ports published by the Docker Compose services   |
-| `REDIS_HOST`, `REDIS_PORT`          | Local or hosted Redis connection                      |
-| `REDIS_URL`                         | Optional Redis URL overriding host and port           |
-| `SUPABASE_URL`                      | Supabase project URL                                  |
-| `SUPABASE_SERVICE_ROLE_KEY`         | Server-only Supabase administrative key               |
-| `SUPABASE_AUDIO_BUCKET`             | Private recording bucket (default `meeting-audio`)    |
-| `MAX_AUDIO_FILE_SIZE_MB`            | Backend recording size limit (default `50`)           |
-| `NEXT_PUBLIC_SUPABASE_URL`          | Browser-safe Supabase project URL                     |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Browser-safe Supabase anonymous key                   |
-| `DEEPGRAM_API_KEY`                  | Server-only Deepgram speech-to-text credential        |
-| `DEEPGRAM_TRANSCRIPTION_MODEL`      | Deepgram transcription model (default `nova-3`)       |
-| `DEEPGRAM_DIARIZATION_MODEL`        | Deepgram diarization model (default `latest`)         |
-| `FFMPEG_PATH`                       | FFmpeg executable path (default `ffmpeg`)             |
-| `FFPROBE_PATH`                      | FFprobe executable path (default `ffprobe`)           |
-| `DEEPSEEK_API_KEY`                  | Server-only DeepSeek credential                       |
-| `DEEPSEEK_MODEL`                    | Analysis model (default `deepseek-v4-flash`)          |
-| `DEEPSEEK_BASE_URL`                 | DeepSeek-compatible API base URL                      |
-| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS`    | Single-pass transcript guard (default `100000`)       |
+| Variable                            | Purpose                                                      |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`                      | PostgreSQL/Supabase connection string used by Prisma         |
+| `FRONTEND_URL`                      | Allowed browser origin for API CORS                          |
+| `TRUST_PROXY`                       | Trusted reverse-proxy hop count for client IP parsing        |
+| `CLERK_AUTHORIZED_PARTIES`          | Allowed Clerk token originating frontend origins             |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Browser-safe Clerk publishable key                           |
+| `CLERK_PUBLISHABLE_KEY`             | Backend Clerk publishable key                                |
+| `CLERK_SECRET_KEY`                  | Server-only Clerk API and verification secret                |
+| `CLERK_JWT_KEY`                     | Optional server-only PEM key for offline verification        |
+| `CLERK_WEBHOOK_SECRET`              | Server-only Clerk webhook signing secret                     |
+| `NEXT_PUBLIC_API_URL`               | Browser-facing base URL for the REST API                     |
+| `API_PORT`, `WEB_PORT`              | Host ports published by the Docker Compose services          |
+| `REDIS_HOST`, `REDIS_PORT`          | Local or hosted Redis connection                             |
+| `REDIS_URL`                         | Optional Redis URL overriding host and port                  |
+| `SUPABASE_URL`                      | Supabase project URL                                         |
+| `SUPABASE_SERVICE_ROLE_KEY`         | Server-only Supabase administrative key                      |
+| `SUPABASE_AUDIO_BUCKET`             | Private recording bucket (default `meeting-audio`)           |
+| `SUPABASE_STORAGE_BUCKET`           | Preferred production bucket name override                    |
+| `SUPABASE_TIMEOUT_MS`               | Supabase request timeout (default `15000`)                   |
+| `ABANDONED_UPLOAD_MAX_AGE_HOURS`    | Age before unconfirmed uploads are cleaned (default `24`)    |
+| `MAX_AUDIO_FILE_SIZE_MB`            | Backend recording size limit (default `50`)                  |
+| `NEXT_PUBLIC_SUPABASE_URL`          | Browser-safe Supabase project URL                            |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Browser-safe Supabase anonymous key                          |
+| `DEEPGRAM_API_KEY`                  | Server-only Deepgram speech-to-text credential               |
+| `DEEPGRAM_TRANSCRIPTION_MODEL`      | Deepgram transcription model (default `nova-3`)              |
+| `DEEPGRAM_DIARIZATION_MODEL`        | Deepgram diarization model (default `latest`)                |
+| `DEEPGRAM_TIMEOUT_MS`               | Deepgram request timeout (default `600000`)                  |
+| `FFMPEG_PATH`                       | FFmpeg executable path (default `ffmpeg`)                    |
+| `FFPROBE_PATH`                      | FFprobe executable path (default `ffprobe`)                  |
+| `DEEPSEEK_API_KEY`                  | Server-only DeepSeek credential                              |
+| `DEEPSEEK_MODEL`                    | Analysis model (default `deepseek-v4-flash`)                 |
+| `DEEPSEEK_BASE_URL`                 | DeepSeek-compatible API base URL                             |
+| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS`    | Single-pass transcript guard (default `100000`)              |
+| `DEEPSEEK_TIMEOUT_MS`               | DeepSeek request timeout (default `120000`)                  |
+| `MEETING_WORKER_CONCURRENCY`        | BullMQ worker concurrency (default `2`)                      |
+| `MAX_ACTIVE_MEETINGS_PER_USER`      | Active processing admission limit (default `3`)              |
+| `MEETING_JOB_ATTEMPTS`              | BullMQ attempts including the first run (default `3`)        |
+| `MEETING_JOB_BACKOFF_MS`            | Exponential retry base delay (default `2000`)                |
+| `API_RATE_LIMIT`                    | General requests allowed per throttle window (default `120`) |
+| `API_RATE_TTL_MS`                   | General throttle window (default `60000`)                    |
 
 Never commit real credentials. All `.env*` files except `.env.example` are ignored.
 
@@ -191,3 +204,35 @@ When a retry finds a valid transcript, the worker skips Deepgram and resumes at 
 The meeting results API is available at `GET /api/v1/meetings/:id/intelligence`. Action-item status changes use `PATCH /api/v1/action-items/:id` with `{ "status": "OPEN" | "IN_PROGRESS" | "COMPLETED" }`. The web Overview tab reads these durable records after completion; the Transcript tab remains available independently.
 
 PostgreSQL remains the browser-visible source of truth across refreshes and app restarts. BullMQ provides its normal stalled-job and retry recovery, but this local milestone runs the API and worker in the same NestJS process; it does not add separate worker deployment, distributed reconciliation, WebSockets, or AI processing.
+
+## Production hardening and release flow
+
+The API applies Helmet security headers, explicit CORS origins from `FRONTEND_URL`, request correlation IDs, structured request logs, and a standard safe error response:
+
+```json
+{
+  "statusCode": 400,
+  "code": "VALIDATION_FAILED",
+  "message": "Validation failed.",
+  "requestId": "..."
+}
+```
+
+Authenticated throttling is keyed by the Clerk subject extracted from the bearer token and still verified authoritatively by Clerk. Anonymous share traffic falls back to client IP. Set `TRUST_PROXY` to the exact reverse-proxy hop count used by the hosting platform so public rate limits see the real client address. Expensive processing, retry, reprocess, upload, playback-URL, and share-creation routes have stricter limits than the general API.
+
+Meeting audio remains private. Owners receive five-minute signed playback URLs; public share responses never include audio metadata or URLs. Share tokens contain 256 bits of randomness, only their SHA-256 hashes are stored, and a new link revokes the previous active link. Expired and revoked links return the same unavailable experience to anonymous visitors.
+
+Deletion cascades database-owned transcript, intelligence, processing, and share records. Referenced Storage objects are removed after meeting or recording deletion, and replacement uploads remove the previous object after the new database update succeeds. Failed confirmations are cleaned immediately. Before authorizing another upload, the API removes up to 100 completed but unreferenced objects older than `ABANDONED_UPLOAD_MAX_AGE_HOURS`; larger backlogs should also be swept by a scheduled production maintenance job.
+
+For every production release:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm db:deploy
+pnpm typecheck
+pnpm lint
+pnpm build
+```
+
+`pnpm db:deploy` runs `prisma migrate deploy`; never run `prisma migrate dev` in a deployment. Deploy the migration before starting the new API. Configure PostgreSQL/Supabase, Clerk, Redis, Deepgram, DeepSeek, frontend origins, timeout values, and concurrency limits through the hosting platform's secret/environment manager. The liveness endpoint exposes only `{ "status": "ok" }`; the readiness endpoint checks PostgreSQL and Redis without calling AI providers.

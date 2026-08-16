@@ -11,13 +11,28 @@ import {
 import { useState } from 'react';
 import { getApiErrorMessage } from '@/lib/api-client';
 import { useAudioUpload } from '../hooks/use-meetings';
+import { useDeleteMeetingAudio } from '../hooks/use-meetings';
 import { AudioDropzone, formatFileSize } from './audio-dropzone';
+import { AudioPlayer, type AudioSeekTarget } from './audio-player';
 import { UploadProgress } from './upload-progress';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
-export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
+export function AudioRecording({
+  meeting,
+  seekTarget,
+}: Readonly<{ meeting: Meeting; seekTarget?: AudioSeekTarget | null }>) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isReplacing, setIsReplacing] = useState(false);
   const uploadMutation = useAudioUpload(meeting.id);
+  const deleteMutation = useDeleteMeetingAudio(meeting.id);
   const hasRecording = Boolean(meeting.audioPath && meeting.audioFileName && meeting.fileSize);
   const processingLocked = ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'].includes(
     meeting.status,
@@ -58,16 +73,69 @@ export function AudioRecording({ meeting }: Readonly<{ meeting: Meeting }>) {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsReplacing(true)}
-            disabled={processingLocked}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-emerald-100 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
-          >
-            <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
-            {processingLocked ? 'Processing recording' : 'Replace recording'}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  disabled={processingLocked}
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280]"
+                >
+                  <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
+                  {processingLocked ? 'Processing recording' : 'Replace recording'}
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>Replace the recording?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Uploading a replacement will clear the current transcript and generated meeting
+                  intelligence after the new file is safely stored.
+                </AlertDialogDescription>
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold">
+                    Keep current recording
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => setIsReplacing(true)}
+                    className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+                  >
+                    Choose replacement
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  disabled={processingLocked || deleteMutation.isPending}
+                  className="min-h-11 rounded-lg px-4 text-sm font-semibold text-[#b91c1c] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Delete recording
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogTitle>Delete this recording?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes the audio, transcript, summary, decisions, and action
+                  items. The meeting record itself will remain.
+                </AlertDialogDescription>
+                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => deleteMutation.mutate()}
+                    className="min-h-11 rounded-lg bg-[#b91c1c] px-5 text-sm font-semibold text-white"
+                  >
+                    Delete recording
+                  </AlertDialogAction>
+                </div>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
+        <AudioPlayer meetingId={meeting.id} seekTarget={seekTarget} />
       </div>
     );
   }

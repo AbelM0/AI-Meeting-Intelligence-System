@@ -13,6 +13,21 @@ export type HealthResponse = {
   status: 'ok';
 };
 
+export type ReadinessResponse = {
+  status: 'ok' | 'unavailable';
+  checks: {
+    database: 'ok' | 'unavailable';
+    redis: 'ok' | 'unavailable';
+  };
+};
+
+export type ApiErrorResponse = {
+  statusCode: number;
+  code: string;
+  message: string;
+  requestId: string;
+};
+
 export type Meeting = {
   id: string;
   userId: string;
@@ -28,11 +43,26 @@ export type Meeting = {
   updatedAt: string;
 };
 
-export type MeetingListItem = Meeting & {
+export type MeetingListItem = {
+  id: string;
+  title: string;
+  status: MeetingStatusValue;
+  duration: number | null;
+  createdAt: string;
   decisionCount: number;
   actionItemCount: number;
   speakerCount: number;
   summaryPreview: string | null;
+};
+
+export type MeetingListResponse = {
+  items: MeetingListItem[];
+  nextCursor: string | null;
+};
+
+export type AudioPlaybackAuthorization = {
+  url: string;
+  expiresIn: number;
 };
 
 export type AudioUploadAuthorization = {
@@ -130,4 +160,26 @@ export type MeetingIntelligence = {
   summary: MeetingSummary;
   decisions: Decision[];
   actionItems: ActionItem[];
+};
+
+export type MeetingShareSummary = {
+  id: string;
+  expiresAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+};
+
+export type MeetingShareCreated = MeetingShareSummary & {
+  url: string;
+};
+
+export type PublicMeetingShare = {
+  title: string;
+  duration: number | null;
+  createdAt: string;
+  summary: MeetingSummary | null;
+  decisions: Decision[];
+  actionItems: ActionItem[];
+  transcript: TranscriptResponse | null;
+  expiresAt: string | null;
 };

@@ -78,7 +78,23 @@ export const createMeetingSchema = z.object({
   title: z.string().trim().min(1, 'Meeting title is required.').max(200),
 });
 
+export const meetingListQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+    cursor: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const shareExpirationSchema = z.enum(['24_HOURS', '7_DAYS', '30_DAYS', 'NEVER']);
+
+export const createMeetingShareSchema = z
+  .object({ expiration: shareExpirationSchema.default('7_DAYS') })
+  .strict();
+
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
+export type MeetingListQueryInput = z.infer<typeof meetingListQuerySchema>;
+export type ShareExpirationValue = z.infer<typeof shareExpirationSchema>;
+export type CreateMeetingShareInput = z.infer<typeof createMeetingShareSchema>;
 export type MeetingStatusValue = z.infer<typeof meetingStatusSchema>;
 export type ProcessingJobStatusValue = z.infer<typeof processingJobStatusSchema>;
 export type MeetingSummaryInput = z.infer<typeof meetingSummarySchema>;

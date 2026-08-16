@@ -23,7 +23,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 3001
+      API_PORT: 3001
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       REDIS_URL: redis://redis:6379
     ports:
@@ -37,7 +37,7 @@ services:
           'CMD',
           'node',
           '-e',
-          "fetch('http://127.0.0.1:3001/api/v1/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3001/api/v1/health/ready').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 10s
       timeout: 5s

@@ -21,7 +21,10 @@ export class StorageService {
   constructor(private readonly config: ConfigService) {}
 
   get bucket(): string {
-    return this.config.get<string>('SUPABASE_AUDIO_BUCKET', 'meeting-audio');
+    return (
+      this.config.get<string>('SUPABASE_STORAGE_BUCKET') ||
+      this.config.get<string>('SUPABASE_AUDIO_BUCKET', 'meeting-audio')
+    );
   }
 
   async createSignedUpload(path: string): Promise<AudioUploadAuthorization> {
@@ -76,6 +79,38 @@ export class StorageService {
     }
   }
 
+  async cleanupAbandonedUploads(
+    folder: string,
+    keepPath: string | null,
+    olderThan: Date,
+  ): Promise<number> {
+    await this.verifyPrivateBucket();
+    const { data, error } = await this.getClient()
+      .storage.from(this.bucket)
+      .list(folder, {
+        limit: 100,
+        sortBy: { column: 'created_at', order: 'asc' },
+      });
+    if (error) throw new ServiceUnavailableException('Unable to inspect abandoned audio uploads.');
+    const paths = (data ?? [])
+      .filter((object) => {
+        const path = `${folder}/${object.name}`;
+        const createdAt = object.created_at ? new Date(object.created_at) : null;
+        return (
+          path !== keepPath &&
+          createdAt !== null &&
+          !Number.isNaN(createdAt.getTime()) &&
+          createdAt < olderThan
+        );
+      })
+      .map((object) => `${folder}/${object.name}`);
+    if (paths.length === 0) return 0;
+    const { error: removeError } = await this.getClient().storage.from(this.bucket).remove(paths);
+    if (removeError)
+      throw new ServiceUnavailableException('Unable to clean abandoned audio uploads.');
+    return paths.length;
+  }
+
   private getClient(): SupabaseClient {
     if (this.client) return this.client;
 
@@ -88,9 +123,28 @@ export class StorageService {
 
     this.client = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
+      global: { fetch: this.timeoutFetch },
     });
     return this.client;
   }
+
+  private readonly timeoutFetch: typeof fetch = async (input, init) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(
+      () => controller.abort(new Error('Supabase request timed out.')),
+      this.config.get<number>('SUPABASE_TIMEOUT_MS', 15_000),
+    );
+    const sourceSignal = init?.signal;
+    const abortFromSource = () => controller.abort(sourceSignal?.reason);
+    sourceSignal?.addEventListener('abort', abortFromSource, { once: true });
+
+    try {
+      return await fetch(input, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timeout);
+      sourceSignal?.removeEventListener('abort', abortFromSource);
+    }
+  };
 
   private async verifyPrivateBucket(): Promise<void> {
     this.bucketVerified ??= this.checkPrivateBucket();

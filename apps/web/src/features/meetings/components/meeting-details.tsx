@@ -18,6 +18,9 @@ import { MeetingStatusBadge } from './meeting-status-badge';
 import { MeetingProcessing } from './meeting-processing';
 import { MeetingOverview } from './meeting-overview';
 import { MeetingTranscript } from './meeting-transcript';
+import { MeetingActions } from './meeting-actions';
+import type { AudioSeekTarget } from './audio-player';
+import { MeetingPrintReport } from './meeting-print-report';
 
 const dateFormatter = new Intl.DateTimeFormat('en', {
   year: 'numeric',
@@ -31,6 +34,8 @@ const recordingRequirements = [
   { label: 'Storage', value: 'Private bucket', Icon: ShieldCheckIcon },
 ];
 
+const EVIDENCE_AUDIO_PREROLL_SECONDS = 3;
+
 export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const meetingQuery = useMeeting(id);
   const statusQuery = useMeetingStatus(id);
@@ -38,6 +43,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   const transcriptQuery = useMeetingTranscript(id, currentStatus === 'COMPLETED');
   const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview');
   const [focusTarget, setFocusTarget] = useState<EvidenceTarget | null>(null);
+  const [audioSeekTarget, setAudioSeekTarget] = useState<AudioSeekTarget | null>(null);
   const evidenceRequestId = useRef(0);
 
   if (meetingQuery.isPending) {
@@ -86,7 +92,8 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
   ].filter(Boolean);
 
   return (
-    <div>
+    <>
+      <div className="meeting-screen">
       <Link
         href="/meetings"
         className="inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-[#4b5563] transition hover:text-[#111827]"
@@ -95,7 +102,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         Meetings
       </Link>
 
-      <header className="mt-4 border-b border-[#e5e7eb] pb-7">
+      <header className="mt-4 flex flex-col gap-5 border-b border-[#e5e7eb] pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="break-words text-[clamp(2.25rem,4vw,3.5rem)] font-medium leading-[1.06] tracking-[-0.035em] text-[#111827]">
             {meeting.title}
@@ -116,6 +123,13 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
             </span>
           </div>
         </div>
+        {currentMeeting.status === 'COMPLETED' ? (
+          <MeetingActions
+            meetingId={meeting.id}
+            meetingTitle={meeting.title}
+            transcriptReady={Boolean(transcript)}
+          />
+        ) : null}
       </header>
 
       <section
@@ -165,7 +179,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           </dl>
 
           <div className="mt-6">
-            <AudioRecording meeting={currentMeeting} />
+            <AudioRecording meeting={currentMeeting} seekTarget={audioSeekTarget} />
           </div>
         </div>
       </section>
@@ -201,6 +215,15 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
               onViewTranscript={(target) => {
                 evidenceRequestId.current += 1;
                 setFocusTarget({ ...target, requestId: evidenceRequestId.current });
+                if (target.sourceStartTime !== null) {
+                  setAudioSeekTarget({
+                    seconds: Math.max(
+                      0,
+                      target.sourceStartTime - EVIDENCE_AUDIO_PREROLL_SECONDS,
+                    ),
+                    requestId: evidenceRequestId.current,
+                  });
+                }
                 setActiveTab('transcript');
               }}
             />
@@ -221,6 +244,8 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           focusTarget={focusTarget}
         />
       ) : null}
-    </div>
+      </div>
+      <MeetingPrintReport meeting={currentMeeting} transcript={transcript ?? null} />
+    </>
   );
 }

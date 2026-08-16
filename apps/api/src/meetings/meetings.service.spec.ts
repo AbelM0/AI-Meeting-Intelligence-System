@@ -115,7 +115,8 @@ void test('meeting list exposes relation counts without returning relation rows'
     {} as never,
     {} as never,
   );
-  const [meeting] = await service.findAll('user-a');
+  const response = await service.findAll('user-a', { limit: 20 });
+  const [meeting] = response.items;
   assert.equal(meeting.decisionCount, 3);
   assert.equal(meeting.actionItemCount, 6);
   assert.equal(meeting.speakerCount, 3);

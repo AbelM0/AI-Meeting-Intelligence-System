@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { QueryProvider } from '@/providers/query-provider';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
+import { Toaster } from '@/components/ui/toaster';
 
 const geist = Geist({
   subsets: ['latin'],
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           afterSignOutUrl="/"
         >
           <QueryProvider>{children}</QueryProvider>
+          <Toaster />
         </ClerkProvider>
       </body>
     </html>

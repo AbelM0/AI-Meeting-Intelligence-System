@@ -8,7 +8,7 @@
     "start": "next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:meeting-utils": "node --test --experimental-strip-types src/features/meetings/utils/meeting-display.spec.ts"
+    "test:meeting-utils": "node --experimental-strip-types src/features/meetings/utils/meeting-display.spec.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.5.20",
@@ -16,6 +16,8 @@
     "@meeting-intelligence/schemas": "workspace:*",
     "@meeting-intelligence/types": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
+    "@radix-ui/react-alert-dialog": "^1",
+    "@radix-ui/react-dropdown-menu": "^2",
     "@radix-ui/react-select": "^2.3.7",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.23",

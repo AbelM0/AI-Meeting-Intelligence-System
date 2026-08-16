@@ -57,8 +57,23 @@ model Meeting {
   summary       MeetingSummary?
   decisions     Decision[]
   actionItems   ActionItem[]
+  shares        MeetingShare[]
 
   @@index([userId])
+  @@index([userId, createdAt, id])
+}
+
+model MeetingShare {
+  id        String    @id @default(uuid()) @db.Uuid
+  meetingId String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  meeting   Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, revokedAt])
+  @@index([expiresAt])
 }
 
 model User {

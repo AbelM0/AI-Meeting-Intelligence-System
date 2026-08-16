@@ -62,19 +62,25 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
 
   async transcribe(input: TranscriptionInput): Promise<TranscriptionResult> {
     try {
-      const response = await this.client.listen.v1.media.transcribeUrl({
-        url: input.audioUrl,
-        model: this.model,
-        smart_format: true,
-        utterances: true,
-        diarize_model: this.diarizationModel,
-        punctuate: true,
-        ...(input.language ? { language: input.language } : { detect_language: true }),
-      });
+      const response = await this.client.listen.v1.media.transcribeUrl(
+        {
+          url: input.audioUrl,
+          model: this.model,
+          smart_format: true,
+          utterances: true,
+          diarize_model: this.diarizationModel,
+          punctuate: true,
+          ...(input.language ? { language: input.language } : { detect_language: true }),
+        },
+        {
+          timeoutInSeconds: Math.ceil(
+            this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000) / 1_000,
+          ),
+          maxRetries: 0,
+        },
+      );
       const normalized = normalizeDeepgramResponse(response);
-      const result = normalized.language
-        ? normalized
-        : { ...normalized, language: input.language };
+      const result = normalized.language ? normalized : { ...normalized, language: input.language };
 
       this.logger.log(
         `Deepgram transcription completed meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} requestId=${getRequestId(response) ?? 'unknown'} stage=transcribing segments=${result.segments.length} speakers=${result.speakers.length}`,

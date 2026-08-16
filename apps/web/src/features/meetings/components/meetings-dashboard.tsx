@@ -19,7 +19,7 @@ export function MeetingsDashboard() {
   const meetingsQuery = useMeetings();
   const [search, setSearch] = useState('');
 
-  const meetings = meetingsQuery.data ?? [];
+  const meetings = meetingsQuery.data?.pages.flatMap((page) => page.items) ?? [];
   const query = search.trim().toLowerCase();
   const filteredMeetings = query
     ? meetings.filter((meeting) => meeting.title.toLowerCase().includes(query))
@@ -64,11 +64,7 @@ export function MeetingsDashboard() {
               index % 2 === 0 ? 'pr-4' : 'border-l border-[#e5e7eb] pl-4'
             } sm:border-l sm:px-5 sm:first:border-l-0 sm:first:pl-0`}
           >
-            <Icon
-              className="h-4 w-4 shrink-0 text-[#4f46e5]"
-              weight="duotone"
-              aria-hidden="true"
-            />
+            <Icon className="h-4 w-4 shrink-0 text-[#4f46e5]" weight="duotone" aria-hidden="true" />
             <div>
               <p className="font-mono text-2xl font-medium tracking-[-0.03em] text-[#111827]">
                 {value}
@@ -93,9 +89,7 @@ export function MeetingsDashboard() {
                 Meeting library
               </h2>
               <p className="mt-1 text-sm text-[#6b7280]">
-                {meetings.length === 1
-                  ? '1 meeting in this workspace'
-                  : `${meetings.length} meetings in this workspace`}
+                {meetings.length === 1 ? '1 meeting loaded' : `${meetings.length} meetings loaded`}
               </p>
             </div>
             <label className="relative block w-full">
@@ -172,11 +166,25 @@ export function MeetingsDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-1" role="list" aria-label="Meeting list">
-                {filteredMeetings.map((meeting, index) => (
-                  <MeetingCard key={meeting.id} meeting={meeting} index={index + 1} />
-                ))}
-              </div>
+              <>
+                <div className="space-y-1" role="list" aria-label="Meeting list">
+                  {filteredMeetings.map((meeting, index) => (
+                    <MeetingCard key={meeting.id} meeting={meeting} index={index + 1} />
+                  ))}
+                </div>
+                {meetingsQuery.hasNextPage && !query ? (
+                  <div className="border-t border-[#e5e7eb] px-3 pt-4 text-center sm:px-4">
+                    <button
+                      type="button"
+                      onClick={() => void meetingsQuery.fetchNextPage()}
+                      disabled={meetingsQuery.isFetchingNextPage}
+                      className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-5 text-sm font-semibold text-[#374151] transition hover:border-[#9ca3af] hover:bg-[#f9fafb] disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {meetingsQuery.isFetchingNextPage ? 'Loading more…' : 'Load more meetings'}
+                    </button>
+                  </div>
+                ) : null}
+              </>
             )}
           </div>
         </section>

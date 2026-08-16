@@ -12,6 +12,7 @@ export type {
   MeetingSummary,
   Decision,
   MeetingSpeaker,
+  MeetingShare,
   ProcessingJob as ProcessingJobRecord,
   Transcript,
   TranscriptSegment,

@@ -22,7 +22,7 @@ apiClient.interceptors.request.use(async (request) => {
 
 export function getApiErrorMessage(error: unknown, fallback: string): string {
   if (!axios.isAxiosError(error)) {
-    return error instanceof Error ? error.message : fallback;
+    return fallback;
   }
 
   const data: unknown = error.response?.data;

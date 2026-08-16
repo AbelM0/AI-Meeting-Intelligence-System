@@ -9,9 +9,15 @@ import {
 } from '@meeting-intelligence/schemas';
 import type { ActionItem } from '@meeting-intelligence/types';
 import { PencilSimpleIcon, XIcon } from '@phosphor-icons/react';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { getApiErrorMessage } from '@/lib/api-client';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useUpdateActionItem } from '../hooks/use-meetings';
 
 export function ActionItemEditor({
@@ -19,8 +25,10 @@ export function ActionItemEditor({
   actionItem,
 }: Readonly<{ meetingId: string; actionItem: ActionItem }>) {
   const dialogId = `edit-action-dialog-${actionItem.id}`;
+  const [dialogElement, setDialogElement] = useState<HTMLDialogElement | null>(null);
   const mutation = useUpdateActionItem(meetingId);
   const {
+    control,
     register,
     handleSubmit,
     reset,
@@ -47,8 +55,12 @@ export function ActionItemEditor({
   }, [actionItem, reset]);
 
   async function submit(input: UpdateActionItemInput) {
-    await mutation.mutateAsync({ actionItemId: actionItem.id, input });
-    (document.getElementById(dialogId) as HTMLDialogElement | null)?.close();
+    try {
+      await mutation.mutateAsync({ actionItemId: actionItem.id, input });
+      dialogElement?.close();
+    } catch {
+      // The mutation keeps the dialog open and shows the server-safe toast.
+    }
   }
 
   const inputClassName =
@@ -60,7 +72,7 @@ export function ActionItemEditor({
         type="button"
         onClick={() => {
           mutation.reset();
-          (document.getElementById(dialogId) as HTMLDialogElement | null)?.showModal();
+          dialogElement?.showModal();
         }}
         className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-[#4b5563] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
         aria-label={`Edit action item: ${actionItem.task}`}
@@ -68,8 +80,9 @@ export function ActionItemEditor({
         <PencilSimpleIcon className="h-4 w-4" weight="bold" aria-hidden="true" /> Edit
       </button>
       <dialog
+        ref={setDialogElement}
         id={dialogId}
-        className="modal-surface w-[min(92vw,34rem)] rounded-lg border border-[#e5e7eb] bg-white p-0 text-[#111827] shadow-2xl backdrop:bg-[#111827]/45"
+        className="modal-surface max-h-[90dvh] w-[min(92vw,34rem)] overflow-y-auto rounded-lg border border-[#e5e7eb] bg-white p-0 text-[#111827] shadow-2xl backdrop:bg-[#111827]/45"
         aria-labelledby={`edit-action-${actionItem.id}`}
         onClose={() => mutation.reset()}
       >
@@ -88,9 +101,7 @@ export function ActionItemEditor({
             </div>
             <button
               type="button"
-              onClick={() =>
-                (document.getElementById(dialogId) as HTMLDialogElement | null)?.close()
-              }
+              onClick={() => dialogElement?.close()}
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#6b7280] hover:bg-[#f3f4f6]"
               aria-label="Close action item editor"
             >
@@ -127,41 +138,62 @@ export function ActionItemEditor({
                   placeholder="No due date"
                 />
               </label>
-              <label className="block text-sm font-semibold text-[#374151]">
-                Priority
-                <select {...register('priority')} className={inputClassName}>
-                  {actionItemPrioritySchema.options.map((priority) => (
-                    <option key={priority} value={priority}>
-                      {priority[0] + priority.slice(1).toLowerCase()}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm font-semibold text-[#374151]">
-                Status
-                <select {...register('status')} className={inputClassName}>
-                  {actionItemStatusSchema.options.map((status) => (
-                    <option key={status} value={status}>
-                      {status === 'IN_PROGRESS'
-                        ? 'In progress'
-                        : status[0] + status.slice(1).toLowerCase()}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="block text-sm font-semibold text-[#374151]">
+                <span id={`priority-label-${actionItem.id}`}>Priority</span>
+                <Controller
+                  control={control}
+                  name="priority"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger
+                        className={`${inputClassName} shadow-none`}
+                        aria-labelledby={`priority-label-${actionItem.id}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent portalContainer={dialogElement}>
+                        {actionItemPrioritySchema.options.map((priority) => (
+                          <SelectItem key={priority} value={priority}>
+                            {priority[0] + priority.slice(1).toLowerCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+              <div className="block text-sm font-semibold text-[#374151]">
+                <span id={`status-label-${actionItem.id}`}>Status</span>
+                <Controller
+                  control={control}
+                  name="status"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger
+                        className={`${inputClassName} shadow-none`}
+                        aria-labelledby={`status-label-${actionItem.id}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent portalContainer={dialogElement}>
+                        {actionItemStatusSchema.options.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {status === 'IN_PROGRESS'
+                              ? 'In progress'
+                              : status[0] + status.slice(1).toLowerCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
             </div>
           </div>
-          {mutation.isError ? (
-            <p className="mt-4 text-sm text-[#b91c1c]" role="alert">
-              {getApiErrorMessage(mutation.error, 'The action item could not be saved.')}
-            </p>
-          ) : null}
           <div className="mt-6 flex justify-end gap-3 border-t border-[#e5e7eb] pt-5">
             <button
               type="button"
-              onClick={() =>
-                (document.getElementById(dialogId) as HTMLDialogElement | null)?.close()
-              }
+              onClick={() => dialogElement?.close()}
               className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold text-[#374151] hover:bg-[#f9fafb]"
             >
               Cancel
