@@ -60,7 +60,7 @@ export function AudioRecording({
   if (hasRecording && !isReplacing) {
     return (
       <div
-        className={`rounded-lg border border-emerald-200 bg-emerald-50 ${showPlayer ? 'p-5' : 'p-4'}`}
+        className={`rounded-lg border border-success/35 bg-success-surface ${showPlayer ? 'p-5' : 'p-4'}`}
       >
         <div
           className={
@@ -70,14 +70,14 @@ export function AudioRecording({
           }
         >
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-popover text-success">
               <CheckCircleIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111827]">
+              <p className="truncate text-sm font-semibold text-foreground">
                 {meeting.audioFileName}
               </p>
-              <p className="mt-1 font-mono text-xs text-[#4b5563]">
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
                 {formatFileSize(meeting.fileSize ?? 0)} / Upload complete
               </p>
             </div>
@@ -86,7 +86,7 @@ export function AudioRecording({
             className={
               showPlayer
                 ? 'flex flex-col gap-2 sm:flex-row'
-                : 'grid grid-cols-2 gap-2 border-t border-emerald-200 pt-4'
+                : 'grid grid-cols-2 gap-2 border-t border-success/35 pt-4'
             }
           >
             <AlertDialog>
@@ -94,7 +94,7 @@ export function AudioRecording({
                 <button
                   type="button"
                   disabled={processingLocked}
-                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-emerald-300 bg-white px-3 text-sm font-semibold text-[#374151] transition duration-200 hover:border-emerald-400 hover:text-emerald-800 disabled:cursor-not-allowed disabled:border-[#d1d5db] disabled:bg-[#f3f4f6] disabled:text-[#6b7280] ${showPlayer ? 'min-h-11' : 'h-9'}`}
+                  className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-success/35 bg-popover px-3 text-sm font-semibold text-foreground transition duration-200 hover:border-success/60 hover:bg-success-surface hover:text-success disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground ${showPlayer ? 'min-h-11' : 'h-9'}`}
                 >
                   <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
                   {processingLocked ? 'Processing recording' : 'Replace recording'}
@@ -107,12 +107,12 @@ export function AudioRecording({
                   intelligence after the new file is safely stored.
                 </AlertDialogDescription>
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
                     Keep current recording
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => setIsReplacing(true)}
-                    className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+                    className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-white"
                   >
                     Choose replacement
                   </AlertDialogAction>
@@ -124,7 +124,7 @@ export function AudioRecording({
                 <button
                   type="button"
                   disabled={processingLocked || deleteMutation.isPending}
-                  className={`whitespace-nowrap rounded-md px-3 text-sm font-semibold text-[#b91c1c] transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 ${showPlayer ? 'min-h-11' : 'h-9 border border-transparent'}`}
+                  className={`whitespace-nowrap rounded-md px-3 text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-60 ${showPlayer ? 'min-h-11' : 'h-9 border border-transparent'}`}
                 >
                   Delete recording
                 </button>
@@ -136,12 +136,12 @@ export function AudioRecording({
                   items. The meeting record itself will remain.
                 </AlertDialogDescription>
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
                     Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => deleteMutation.mutate()}
-                    className="min-h-11 rounded-lg bg-[#b91c1c] px-5 text-sm font-semibold text-white"
+                    className="min-h-11 rounded-lg bg-destructive px-5 text-sm font-semibold text-white"
                   >
                     Delete recording
                   </AlertDialogAction>
@@ -167,15 +167,15 @@ export function AudioRecording({
   return (
     <div className="space-y-4">
       {isReplacing ? (
-        <div className="flex items-start gap-3 rounded-lg bg-[#f3f4f6] p-4">
+        <div className="flex items-start gap-3 rounded-lg bg-muted p-4">
           <ArrowsClockwiseIcon
-            className="mt-0.5 h-4 w-4 shrink-0 text-[#4f46e5]"
+            className="mt-0.5 h-4 w-4 shrink-0 text-primary"
             weight="bold"
             aria-hidden="true"
           />
           <div>
-            <p className="text-sm font-semibold text-[#111827]">Choose a replacement file</p>
-            <p className="mt-1 text-sm leading-6 text-[#4b5563]">
+            <p className="text-sm font-semibold text-foreground">Choose a replacement file</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
               Your current recording stays attached until the new upload is complete.
             </p>
           </div>
@@ -195,7 +195,7 @@ export function AudioRecording({
       ) : null}
       {uploadMutation.isError ? (
         <div
-          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+          className="rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-sm text-destructive"
           role="alert"
         >
           <p className="font-semibold">
@@ -215,13 +215,13 @@ export function AudioRecording({
             type="button"
             onClick={uploadMutation.retry}
             disabled={isBusy}
-            className="mt-3 min-h-11 rounded-lg border border-red-300 bg-white px-4 font-semibold transition hover:border-red-400 hover:bg-red-100 focus:outline-none focus:ring-4 focus:ring-red-100 disabled:opacity-50"
+            className="mt-3 min-h-11 rounded-lg border border-destructive/35 bg-popover px-4 font-semibold transition hover:border-destructive/50 hover:bg-destructive/15 focus:outline-none focus:ring-4 focus:ring-destructive/15 disabled:opacity-50"
           >
             {uploadMutation.failure === 'confirmation' ? 'Retry saving' : 'Retry upload'}
           </button>
         </div>
       ) : null}
-      <div className="flex flex-col-reverse gap-3 border-t border-[#e5e7eb] pt-4 sm:flex-row sm:justify-end">
+      <div className="flex flex-col-reverse gap-3 border-t border-border pt-4 sm:flex-row sm:justify-end">
         {isReplacing ? (
           <button
             type="button"
@@ -231,7 +231,7 @@ export function AudioRecording({
               uploadMutation.reset();
             }}
             disabled={isBusy}
-            className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151] transition duration-200 hover:border-[#9ca3af] hover:bg-[#f9fafb] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e5e7eb] disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground transition duration-200 hover:border-input hover:bg-muted active:translate-y-px focus:outline-none focus:ring-4 focus:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Keep current recording
           </button>
@@ -240,7 +240,7 @@ export function AudioRecording({
           type="button"
           onClick={upload}
           disabled={!selectedFile || isBusy || uploadMutation.isError}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition duration-200 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#6b7280] disabled:opacity-100"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition duration-200 hover:bg-primary/90 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-ring/25 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
         >
           {isBusy ? (
             <SpinnerGapIcon className="h-4 w-4 animate-spin" weight="bold" aria-hidden="true" />
@@ -253,7 +253,7 @@ export function AudioRecording({
           <button
             type="button"
             onClick={() => void uploadMutation.cancel()}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151] transition hover:border-[#9ca3af] hover:bg-[#f9fafb] focus:outline-none focus:ring-4 focus:ring-[#e5e7eb]"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground transition hover:border-input hover:bg-muted focus:outline-none focus:ring-4 focus:ring-ring/25"
           >
             <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
             Cancel upload

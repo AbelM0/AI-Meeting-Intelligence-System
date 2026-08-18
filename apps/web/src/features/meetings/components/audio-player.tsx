@@ -111,7 +111,7 @@ export function AudioPlayer({
           type="button"
           onClick={togglePlayback}
           disabled={playbackMutation.isPending}
-          className="flex h-9 w-9 items-center justify-center rounded-md bg-[#4f46e5] text-white transition hover:bg-[#4338ca] disabled:cursor-wait disabled:opacity-60"
+          className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-white transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
           aria-label={playing ? 'Pause recording' : 'Play recording'}
         >
           {playing ? (
@@ -120,7 +120,7 @@ export function AudioPlayer({
             <PlayIcon className="h-4 w-4" weight="fill" aria-hidden="true" />
           )}
         </button>
-        <span className="whitespace-nowrap font-mono text-xs font-semibold text-[#374151]">
+        <span className="whitespace-nowrap font-mono text-xs font-semibold text-muted-foreground">
           {formatTimestamp(currentTime)} / {formatTimestamp(duration)}
         </span>
         <label className="flex min-w-0 items-center gap-2">
@@ -148,7 +148,7 @@ export function AudioPlayer({
             }}
           >
             <SelectTrigger
-              className="h-9 border-[#d1d5db] bg-white shadow-none"
+              className="h-9 border-border bg-popover shadow-none"
               aria-labelledby={`playback-speed-${meetingId}`}
             >
               <SelectValue />

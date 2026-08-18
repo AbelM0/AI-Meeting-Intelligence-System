@@ -64,7 +64,7 @@ export function ActionItemEditor({
   }
 
   const inputClassName =
-    'mt-2 min-h-11 w-full rounded-lg border border-[#d1d5db] bg-[#f9fafb] px-3 text-sm text-[#111827] outline-none transition hover:border-[#9ca3af] focus:border-[#4f46e5] focus:bg-white focus:ring-4 focus:ring-[#e0e7ff]';
+    'mt-2 min-h-11 w-full rounded-lg border border-border bg-muted px-3 text-sm text-foreground outline-none transition hover:border-input focus:border-primary focus:bg-popover focus:ring-4 focus:ring-ring/25';
 
   return (
     <>
@@ -74,7 +74,7 @@ export function ActionItemEditor({
           mutation.reset();
           dialogElement?.showModal();
         }}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-[#4b5563] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
         aria-label={`Edit action item: ${actionItem.task}`}
       >
         <PencilSimpleIcon className="h-4 w-4" weight="bold" aria-hidden="true" /> Edit
@@ -82,12 +82,15 @@ export function ActionItemEditor({
       <dialog
         ref={setDialogElement}
         id={dialogId}
-        className="modal-surface max-h-[90dvh] w-[min(92vw,34rem)] overflow-y-auto rounded-lg border border-[#e5e7eb] bg-white p-0 text-[#111827] shadow-2xl backdrop:bg-[#111827]/45"
+        className="modal-surface w-[min(92vw,34rem)] overflow-visible rounded-lg border border-border bg-popover p-0 text-foreground shadow-2xl backdrop:bg-[#111827]/45"
         aria-labelledby={`edit-action-${actionItem.id}`}
         onClose={() => mutation.reset()}
       >
-        <form onSubmit={handleSubmit(submit)} className="p-5 sm:p-7">
-          <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-5">
+        <form
+          onSubmit={handleSubmit(submit)}
+          className="max-h-[90dvh] overflow-y-auto rounded-lg p-5 sm:p-7"
+        >
+          <div className="flex items-start justify-between gap-4 border-b border-border pb-5">
             <div>
               <h2
                 id={`edit-action-${actionItem.id}`}
@@ -95,21 +98,21 @@ export function ActionItemEditor({
               >
                 Edit action item
               </h2>
-              <p className="mt-1 text-sm leading-6 text-[#6b7280]">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Changes are saved as the authoritative task record.
               </p>
             </div>
             <button
               type="button"
               onClick={() => dialogElement?.close()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#6b7280] hover:bg-[#f3f4f6]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
               aria-label="Close action item editor"
             >
               <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
             </button>
           </div>
           <div className="mt-5 space-y-4">
-            <label className="block text-sm font-semibold text-[#374151]">
+            <label className="block text-sm font-semibold text-muted-foreground">
               Task
               <textarea
                 {...register('task')}
@@ -118,11 +121,11 @@ export function ActionItemEditor({
                 aria-invalid={Boolean(errors.task)}
               />
               {errors.task ? (
-                <span className="mt-1 block text-xs text-[#b91c1c]">{errors.task.message}</span>
+                <span className="mt-1 block text-xs text-destructive">{errors.task.message}</span>
               ) : null}
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-[#374151]">
+              <label className="block text-sm font-semibold text-muted-foreground">
                 Owner
                 <input
                   {...register('owner', { setValueAs: (value) => String(value).trim() || null })}
@@ -130,7 +133,7 @@ export function ActionItemEditor({
                   placeholder="Unassigned"
                 />
               </label>
-              <label className="block text-sm font-semibold text-[#374151]">
+              <label className="block text-sm font-semibold text-muted-foreground">
                 Due date
                 <input
                   {...register('dueDate', { setValueAs: (value) => String(value).trim() || null })}
@@ -138,7 +141,7 @@ export function ActionItemEditor({
                   placeholder="No due date"
                 />
               </label>
-              <div className="block text-sm font-semibold text-[#374151]">
+              <div className="block text-sm font-semibold text-muted-foreground">
                 <span id={`priority-label-${actionItem.id}`}>Priority</span>
                 <Controller
                   control={control}
@@ -162,7 +165,7 @@ export function ActionItemEditor({
                   )}
                 />
               </div>
-              <div className="block text-sm font-semibold text-[#374151]">
+              <div className="block text-sm font-semibold text-muted-foreground">
                 <span id={`status-label-${actionItem.id}`}>Status</span>
                 <Controller
                   control={control}
@@ -190,18 +193,18 @@ export function ActionItemEditor({
               </div>
             </div>
           </div>
-          <div className="mt-6 flex justify-end gap-3 border-t border-[#e5e7eb] pt-5">
+          <div className="mt-6 flex justify-end gap-3 border-t border-border pt-5">
             <button
               type="button"
               onClick={() => dialogElement?.close()}
-              className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold text-[#374151] hover:bg-[#f9fafb]"
+              className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground hover:bg-muted"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition hover:bg-[#4338ca] disabled:cursor-wait disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
             >
               {mutation.isPending ? 'Saving...' : 'Save changes'}
             </button>

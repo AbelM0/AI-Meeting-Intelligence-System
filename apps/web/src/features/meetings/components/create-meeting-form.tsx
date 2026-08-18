@@ -47,7 +47,7 @@ export function CreateMeetingForm() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-5 py-2.5 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff]"
+        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-primary/90 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-ring/25"
       >
         <PlusIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
         New meeting
@@ -65,24 +65,24 @@ export function CreateMeetingForm() {
     >
       <form
         onSubmit={onSubmit}
-        className="modal-surface w-full rounded-t-2xl bg-white p-6 shadow-[0_28px_80px_-28px_rgba(17,24,39,0.45)] sm:max-w-lg sm:rounded-lg sm:p-8"
+        className="modal-surface w-full rounded-t-2xl bg-popover p-6 shadow-[0_28px_80px_-28px_rgba(17,24,39,0.45)] sm:max-w-lg sm:rounded-lg sm:p-8"
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-meeting-title"
       >
         <div className="mb-7 flex items-start justify-between gap-4">
           <div className="flex gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#c7d2fe] bg-[#eef2ff] text-[#4f46e5]">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-accent text-primary">
               <CalendarPlusIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div>
               <h2
                 id="create-meeting-title"
-                className="text-xl font-semibold tracking-[-0.02em] text-[#111827]"
+                className="text-xl font-semibold tracking-[-0.02em] text-foreground"
               >
                 Create a meeting
               </h2>
-              <p className="mt-1 text-sm leading-6 text-[#4b5563]">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Name the meeting now. Attach its private audio next.
               </p>
             </div>
@@ -91,13 +91,13 @@ export function CreateMeetingForm() {
             type="button"
             onClick={() => setIsOpen(false)}
             disabled={createMutation.isPending}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-[#f3f4f6] hover:text-[#111827]"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
             aria-label="Close create meeting form"
           >
             <XIcon className="h-5 w-5" weight="bold" aria-hidden="true" />
           </button>
         </div>
-        <label htmlFor="meeting-title" className="mb-2 block text-sm font-semibold text-[#374151]">
+        <label htmlFor="meeting-title" className="mb-2 block text-sm font-semibold text-muted-foreground">
           Meeting title
         </label>
         <input
@@ -107,10 +107,10 @@ export function CreateMeetingForm() {
           maxLength={200}
           placeholder="Weekly engineering sync"
           aria-invalid={Boolean(errors.title)}
-          className="min-h-12 w-full rounded-lg border border-[#d1d5db] bg-[#f9fafb] px-4 text-sm text-[#111827] outline-none transition duration-200 placeholder:text-[#6b7280] hover:border-[#9ca3af] focus:border-[#4f46e5] focus:bg-white focus:ring-4 focus:ring-[#e0e7ff]"
+          className="min-h-12 w-full rounded-lg border border-border bg-muted px-4 text-sm text-foreground outline-none transition duration-200 placeholder:text-muted-foreground hover:border-input focus:border-primary focus:bg-popover focus:ring-4 focus:ring-ring/25"
         />
         {errors.title ? (
-          <p className="mt-2 text-sm font-medium text-red-700" role="alert">
+          <p className="mt-2 text-sm font-medium text-destructive" role="alert">
             {errors.title.message}
           </p>
         ) : null}
@@ -119,14 +119,14 @@ export function CreateMeetingForm() {
             type="button"
             onClick={() => setIsOpen(false)}
             disabled={createMutation.isPending}
-            className="min-h-11 rounded-lg px-4 text-sm font-semibold text-[#4b5563] transition hover:bg-[#f3f4f6] active:translate-y-px disabled:opacity-60"
+            className="min-h-11 rounded-lg px-4 text-sm font-semibold text-muted-foreground transition hover:bg-muted active:translate-y-px disabled:opacity-60"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={createMutation.isPending}
-            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition duration-200 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-white transition duration-200 hover:bg-primary/90 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-ring/25 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {createMutation.isPending ? 'Creating…' : 'Create meeting'}
           </button>

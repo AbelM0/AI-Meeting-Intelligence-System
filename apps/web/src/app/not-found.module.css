@@ -1,0 +1,130 @@
+.page {
+  isolation: isolate;
+}
+
+.signalField {
+  position: relative;
+  min-height: 24rem;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 48% 46%, hsl(var(--accent)) 0, transparent 42%),
+    hsl(var(--popover));
+}
+
+.signalField::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, hsl(var(--primary) / 0.05), transparent 67%);
+  content: '';
+  pointer-events: none;
+}
+
+.readout {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.5rem, 2vw, 1.25rem);
+  transform: translate(-50%, -50%);
+  color: hsl(var(--foreground));
+  font-size: clamp(4.5rem, 13vw, 8.5rem);
+  font-weight: 560;
+  letter-spacing: -0.04em;
+  line-height: 0.8;
+}
+
+.zero {
+  position: relative;
+  display: grid;
+  width: 0.72em;
+  height: 1em;
+  place-items: center;
+  border: 0.09em solid currentColor;
+  border-radius: 50%;
+  color: hsl(var(--primary));
+}
+
+.zero::after {
+  width: 0.09em;
+  height: 0.42em;
+  border-radius: 999px;
+  background: hsl(var(--info));
+  box-shadow:
+    -0.14em 0.08em 0 -0.02em hsl(var(--info) / 0.7),
+    0.14em -0.07em 0 -0.02em hsl(var(--info) / 0.7);
+  content: '';
+}
+
+.node {
+  position: absolute;
+  width: var(--node-size);
+  height: var(--node-size);
+  border-radius: 0.18rem;
+  background: hsl(var(--primary) / var(--node-opacity));
+  animation: signal-drift 5.8s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+  animation-delay: var(--node-delay);
+  transform: translate3d(0, 0, 0);
+}
+
+.signalField:hover .node {
+  animation-play-state: paused;
+  opacity: 0.9;
+}
+
+.baseline {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 1.1rem;
+  left: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.baseline::before {
+  height: 1px;
+  flex: 1;
+  background: hsl(var(--border));
+  content: '';
+}
+
+@keyframes signal-drift {
+  0%,
+  18% {
+    opacity: 0.32;
+    transform: translate3d(0, 0, 0) scale(0.82);
+  }
+  62% {
+    opacity: 0.86;
+  }
+  100% {
+    opacity: 0.5;
+    transform: translate3d(var(--node-shift-x), var(--node-shift-y), 0) scale(1);
+  }
+}
+
+@media (max-width: 767px) {
+  .signalField {
+    min-height: 18rem;
+  }
+
+  .node:nth-of-type(n + 13) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node {
+    animation: none;
+    opacity: 0.65;
+  }
+}
+

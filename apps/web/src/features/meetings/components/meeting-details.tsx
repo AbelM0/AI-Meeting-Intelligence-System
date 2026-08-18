@@ -41,8 +41,8 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [recordingSettingsOpen]);
 
-  if (meetingQuery.isPending) return <div className="space-y-4" aria-label="Loading meeting"><div className="h-5 w-28 animate-pulse rounded bg-muted" /><div className="h-28 animate-pulse rounded-lg bg-white" /><div className="h-72 animate-pulse rounded-lg bg-white" /></div>;
-  if (meetingQuery.isError) return <div className="border border-red-200 bg-red-50 p-5 text-red-800" role="alert"><div className="flex items-start gap-3"><WarningIcon className="mt-0.5 h-5 w-5 shrink-0" weight="duotone" aria-hidden="true" /><div><p className="font-semibold">Meeting unavailable</p><p className="mt-1 text-sm">{getApiErrorMessage(meetingQuery.error, 'Return to the meetings page and try again.')}</p></div></div></div>;
+  if (meetingQuery.isPending) return <div className="space-y-4" aria-label="Loading meeting"><div className="h-5 w-28 animate-pulse rounded bg-muted" /><div className="h-28 animate-pulse rounded-lg bg-popover" /><div className="h-72 animate-pulse rounded-lg bg-popover" /></div>;
+  if (meetingQuery.isError) return <div className="border border-destructive/25 bg-destructive/10 p-5 text-destructive" role="alert"><div className="flex items-start gap-3"><WarningIcon className="mt-0.5 h-5 w-5 shrink-0" weight="duotone" aria-hidden="true" /><div><p className="font-semibold">Meeting unavailable</p><p className="mt-1 text-sm">{getApiErrorMessage(meetingQuery.error, 'Return to the meetings page and try again.')}</p></div></div></div>;
 
   const meeting = meetingQuery.data;
   const currentMeeting = { ...meeting, status: currentStatus ?? meeting.status };
@@ -76,7 +76,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
           </div>
           {completed ? (
             <div className="flex flex-wrap items-center gap-2" data-no-print>
-              <button type="button" onClick={() => setRecordingSettingsOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-md border bg-white px-3 text-sm font-medium text-[#374151] transition hover:bg-muted">
+              <button type="button" onClick={() => setRecordingSettingsOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-md border bg-popover px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted">
                 <SlidersHorizontalIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
                 Recording
               </button>
@@ -86,7 +86,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
         </header>
 
         {!completed ? (
-          <section className="mt-5 rounded-lg border bg-white p-4" aria-labelledby="recording-title">
+          <section className="mt-5 rounded-lg border bg-popover p-4" aria-labelledby="recording-title">
             <div className="mb-4 flex items-center gap-2"><FileAudioIcon className="h-4 w-4 text-primary" weight="duotone" aria-hidden="true" /><h2 id="recording-title" className="text-sm font-semibold">Recording</h2></div>
             <AudioRecording meeting={currentMeeting} seekTarget={audioSeekTarget} />
           </section>
@@ -95,7 +95,7 @@ export function MeetingDetails({ id }: Readonly<{ id: string }>) {
 
         {completed && recordingSettingsOpen ? (
           <div className="fixed inset-0 z-40 bg-[#111827]/40" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setRecordingSettingsOpen(false); }}>
-            <aside className="modal-surface ml-auto flex h-full w-full max-w-md flex-col bg-white text-foreground shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="recording-settings-title">
+            <aside className="modal-surface ml-auto flex h-full w-full max-w-md flex-col bg-popover text-foreground shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="recording-settings-title">
               <header className="flex items-start justify-between gap-4 border-b p-5">
                 <div>
                   <h2 id="recording-settings-title" className="text-lg font-semibold tracking-[-0.02em]">Recording settings</h2>

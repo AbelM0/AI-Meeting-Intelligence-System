@@ -41,6 +41,19 @@ const config: Config = {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
         },
+        surface: 'hsl(var(--surface))',
+        success: {
+          DEFAULT: 'hsl(var(--success))',
+          surface: 'hsl(var(--success-surface))',
+        },
+        warning: {
+          DEFAULT: 'hsl(var(--warning))',
+          surface: 'hsl(var(--warning-surface))',
+        },
+        info: {
+          DEFAULT: 'hsl(var(--info))',
+          surface: 'hsl(var(--info-surface))',
+        },
       },
       boxShadow: {
         soft: '0 18px 50px -24px rgb(15 23 42 / 0.22)',

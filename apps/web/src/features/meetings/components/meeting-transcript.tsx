@@ -37,7 +37,7 @@ function HighlightedText({ text, query }: Readonly<{ text: string; query: string
   if (!query) return text;
   return text.split(new RegExp(`(${escapeRegExp(query)})`, 'gi')).map((part, index) =>
     part.toLocaleLowerCase() === query.toLocaleLowerCase() ? (
-      <mark key={`${part}-${index}`} className="rounded bg-[#cffafe] px-0.5 text-[#0e7490]">
+      <mark key={`${part}-${index}`} className="rounded bg-info-surface px-0.5 text-info">
         {part}
       </mark>
     ) : (
@@ -82,10 +82,10 @@ function SpeakerManager({
 
   return (
     <div className="fixed inset-0 z-50 bg-[#111827]/35" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section className="ml-auto h-full w-full max-w-sm overflow-y-auto border-l bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="speakers-title">
+    <section className="ml-auto h-full w-full max-w-sm overflow-y-auto border-l bg-popover p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="speakers-title">
       <div className="flex items-start justify-between gap-4">
         <div>
-        <h3 id="speakers-title" className="text-sm font-semibold text-[#111827]">
+        <h3 id="speakers-title" className="text-sm font-semibold text-foreground">
           Speakers
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">Rename detected speakers.</p>
@@ -99,7 +99,7 @@ function SpeakerManager({
             className="flex min-h-16 items-center gap-3 py-2"
           >
             <span
-              className="flex h-8 min-w-8 items-center justify-center rounded-full border border-[#c7d2fe] bg-[#eef2ff] px-1 font-mono text-xs font-semibold text-[#4338ca]"
+              className="flex h-8 min-w-8 items-center justify-center rounded-full border border-primary/30 bg-accent px-1 font-mono text-xs font-semibold text-primary"
               aria-hidden="true"
             >
               {getSpeakerMarker(speaker)}
@@ -121,21 +121,21 @@ function SpeakerManager({
                       if (event.key === 'Escape') setEditingId(null);
                     }}
                     placeholder={speaker.label}
-                    className="min-h-10 w-full rounded-lg border border-[#d1d5db] bg-white px-3 text-sm outline-none focus:border-[#4f46e5] focus:ring-4 focus:ring-[#e0e7ff]"
+                    className="min-h-10 w-full rounded-lg border border-border bg-popover px-3 text-sm outline-none focus:border-primary focus:ring-4 focus:ring-ring/25"
                   />
                 </label>
                 <button
                   type="button"
                   disabled={mutation.isPending || (!name.trim() && !speaker.name)}
                   onClick={() => void save(speaker)}
-                  className="min-h-10 rounded-lg px-3 text-xs font-semibold text-[#4f46e5] disabled:opacity-50"
+                  className="min-h-10 rounded-lg px-3 text-xs font-semibold text-primary disabled:opacity-50"
                 >
                   {mutation.isPending ? 'Saving' : 'Save'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditingId(null)}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-[#6b7280] hover:bg-white"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-popover"
                   aria-label={`Cancel renaming ${speaker.label}`}
                 >
                   <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
@@ -144,15 +144,15 @@ function SpeakerManager({
             ) : (
               <>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#111827]">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {getSpeakerDisplayName(speaker)}
                   </p>
-                  {speaker.name ? <p className="text-xs text-[#6b7280]">{speaker.label}</p> : null}
+                  {speaker.name ? <p className="text-xs text-muted-foreground">{speaker.label}</p> : null}
                 </div>
                 <button
                   type="button"
                   onClick={() => startEditing(speaker)}
-                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-[#4b5563] hover:bg-white hover:text-[#111827]"
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold text-muted-foreground hover:bg-popover hover:text-foreground"
                   aria-label={`${speaker.name ? 'Edit name for' : 'Rename'} ${getSpeakerDisplayName(speaker)}`}
                 >
                   <PencilSimpleIcon className="h-3.5 w-3.5" weight="bold" aria-hidden="true" />
@@ -175,7 +175,7 @@ function TranscriptRows({
 }: Readonly<{ segments: TranscriptSegment[]; query: string; highlightedId: string | null }>) {
   if (segments.length === 0)
     return (
-      <p className="rounded-lg bg-[#f9fafb] px-4 py-5 text-sm leading-6 text-[#4b5563]">
+      <p className="rounded-lg bg-muted px-4 py-5 text-sm leading-6 text-muted-foreground">
         No spoken content was detected in this recording.
       </p>
     );
@@ -189,18 +189,18 @@ function TranscriptRows({
             id={`transcript-segment-${segment.id}`}
             key={segment.id}
             tabIndex={highlighted ? -1 : undefined}
-            className={`grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-t border-[#e5e7eb] px-1 py-5 outline-none transition-colors duration-500 first:border-t-0 sm:grid-cols-[68px_minmax(0,1fr)] sm:gap-5 ${highlighted ? 'border-l-2 border-l-[#4f46e5] bg-[#eef2ff]' : ''}`}
+            className={`grid grid-cols-[52px_minmax(0,1fr)] gap-3 border-t border-border px-1 py-5 outline-none transition-colors duration-500 first:border-t-0 sm:grid-cols-[68px_minmax(0,1fr)] sm:gap-5 ${highlighted ? 'border-l-2 border-l-[#4f46e5] bg-accent' : ''}`}
           >
             <div className="space-y-3">
               <time
-                className="font-mono text-[11px] font-semibold text-[#4f46e5]"
+                className="font-mono text-[11px] font-semibold text-primary"
                 dateTime={`PT${Math.max(0, segment.startTime)}S`}
               >
                 {formatTimestamp(segment.startTime)}
               </time>
               {segment.speaker ? (
                 <span
-                  className="flex h-9 min-w-9 w-fit items-center justify-center rounded-full border border-[#c7d2fe] bg-[#eef2ff] px-1 font-mono text-xs font-semibold text-[#4338ca]"
+                  className="flex h-9 min-w-9 w-fit items-center justify-center rounded-full border border-primary/30 bg-accent px-1 font-mono text-xs font-semibold text-primary"
                   aria-hidden="true"
                 >
                   {getSpeakerMarker(segment.speaker)}
@@ -209,13 +209,13 @@ function TranscriptRows({
             </div>
             <div className="min-w-0">
               {speakerName ? (
-                <p className="mb-1 text-sm font-semibold text-[#111827]">
+                <p className="mb-1 text-sm font-semibold text-foreground">
                   <HighlightedText text={speakerName} query={query} />
                 </p>
               ) : (
-                <p className="mb-1 text-sm font-medium text-[#9ca3af]">Unknown speaker</p>
+                <p className="mb-1 text-sm font-medium text-muted-foreground">Unknown speaker</p>
               )}
-              <p className="max-w-[72ch] text-[15px] leading-7 text-[#1f2937]">
+              <p className="max-w-[72ch] text-[15px] leading-7 text-muted-foreground">
                 <HighlightedText text={segment.text} query={query} />
               </p>
             </div>
@@ -299,14 +299,14 @@ export function MeetingTranscript({
       <div className="border-b pb-4">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#eef2ff] text-primary">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent text-primary">
               <TextAlignLeftIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-lg font-semibold tracking-[-0.02em] text-[#111827]">
+              <h2 className="text-lg font-semibold tracking-[-0.02em] text-foreground">
                 Transcript
               </h2>
-              <p className="mt-1 max-w-[60ch] text-sm leading-6 text-[#6b7280]">
+              <p className="mt-1 max-w-[60ch] text-sm leading-6 text-muted-foreground">
                 {isCompleted
                   ? 'A timestamped, speaker-linked record of the conversation.'
                   : status === 'FAILED'
@@ -316,7 +316,7 @@ export function MeetingTranscript({
             </div>
           </div>
           {isCompleted && transcript ? (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               <span>{transcript.segments.length} segments</span>
               {transcript.language ? <span>{transcript.language}</span> : null}
               {transcript.duration !== null ? (
@@ -330,7 +330,7 @@ export function MeetingTranscript({
             <label className="relative block w-full sm:max-w-md">
               <span className="sr-only">Search transcript</span>
               <MagnifyingGlassIcon
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]"
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                 weight="bold"
                 aria-hidden="true"
               />
@@ -338,15 +338,15 @@ export function MeetingTranscript({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search transcript..."
-                className="h-9 w-full rounded-md border border-[#d1d5db] bg-white pl-9 pr-3 text-sm text-[#111827] outline-none transition hover:border-[#9ca3af] focus:border-[#4f46e5] focus:ring-2 focus:ring-[#e0e7ff]"
+                className="h-9 w-full rounded-md border border-border bg-popover pl-9 pr-3 text-sm text-foreground outline-none transition hover:border-input focus:border-primary focus:ring-2 focus:ring-ring/25"
               />
             </label>
-            <span className="min-h-6 text-sm text-[#6b7280]" aria-live="polite">
+            <span className="min-h-6 text-sm text-muted-foreground" aria-live="polite">
               {query
                 ? `${visibleSegments.length} ${visibleSegments.length === 1 ? 'match' : 'matches'}`
                 : ''}
             </span>
-            <button type="button" onClick={() => setSpeakersOpen(true)} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-white px-3 text-sm font-medium transition hover:bg-muted"><UsersThreeIcon className="h-4 w-4" aria-hidden="true" />Speakers</button>
+            <button type="button" onClick={() => setSpeakersOpen(true)} className="inline-flex h-9 items-center justify-center gap-2 rounded-md border bg-popover px-3 text-sm font-medium transition hover:bg-muted"><UsersThreeIcon className="h-4 w-4" aria-hidden="true" />Speakers</button>
           </div>
         ) : null}
       </div>
@@ -358,11 +358,11 @@ export function MeetingTranscript({
         tabIndex={0}
       >
         {activeStatuses.includes(status) ? (
-          <div className="rounded-lg border border-[#a5f3fc] bg-[#ecfeff] p-5" aria-live="polite">
-            <p className="font-semibold text-[#164e63]">
+          <div className="rounded-lg border border-info/35 bg-info-surface p-5" aria-live="polite">
+            <p className="font-semibold text-info">
               Creating transcript and identifying speakers...
             </p>
-            <p className="mt-1 text-sm leading-6 text-[#155e75]">
+            <p className="mt-1 text-sm leading-6 text-info">
               This view will update when the transcript is ready.
             </p>
           </div>
@@ -370,14 +370,14 @@ export function MeetingTranscript({
           <div className="space-y-5" aria-label="Loading transcript">
             {[1, 2, 3].map((item) => (
               <div key={item} className="grid grid-cols-[52px_1fr] gap-4">
-                <div className="h-10 animate-pulse rounded bg-[#e5e7eb]" />
-                <div className="h-16 animate-pulse rounded bg-[#e5e7eb]" />
+                <div className="h-10 animate-pulse rounded bg-muted" />
+                <div className="h-16 animate-pulse rounded bg-muted" />
               </div>
             ))}
           </div>
         ) : transcriptQuery.isError ? (
           <div
-            className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-800"
+            className="rounded-lg border border-destructive/25 bg-destructive/10 p-5 text-sm text-destructive"
             role="alert"
           >
             <div className="flex gap-3">
@@ -401,7 +401,7 @@ export function MeetingTranscript({
           <>
             {status === 'FAILED' ? (
               <div
-                className="mb-6 rounded-lg border border-red-200 bg-red-50 p-5 text-red-800"
+                className="mb-6 rounded-lg border border-destructive/25 bg-destructive/10 p-5 text-destructive"
                 role="alert"
               >
                 <p className="font-semibold">Meeting analysis failed</p>
@@ -417,7 +417,7 @@ export function MeetingTranscript({
                 highlightedId={focusedSegment?.id ?? null}
               />
             ) : (
-              <p className="rounded-lg bg-[#f9fafb] px-4 py-5 text-sm text-[#4b5563]">
+              <p className="rounded-lg bg-muted px-4 py-5 text-sm text-muted-foreground">
                 No transcript segments match “{query}”.
               </p>
             )}

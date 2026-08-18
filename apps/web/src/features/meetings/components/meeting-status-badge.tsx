@@ -4,37 +4,37 @@ import { cn } from '@/lib/utils';
 const statusConfig = {
   UPLOADED: {
     label: 'Uploaded',
-    className: 'border-[#bae6fd] bg-[#f0f9ff] text-[#0369a1]',
+    className: 'border-info/35 bg-info-surface text-info',
     active: false,
   },
   QUEUED: {
     label: 'Queued',
-    className: 'border-[#fde68a] bg-[#fffbeb] text-[#92400e]',
+    className: 'border-warning/40 bg-warning-surface text-warning',
     active: true,
   },
   PREPROCESSING: {
     label: 'Preparing',
-    className: 'border-[#a5f3fc] bg-[#ecfeff] text-[#0e7490]',
+    className: 'border-info/35 bg-info-surface text-info',
     active: true,
   },
   TRANSCRIBING: {
     label: 'Transcribing',
-    className: 'border-[#a5f3fc] bg-[#ecfeff] text-[#0e7490]',
+    className: 'border-info/35 bg-info-surface text-info',
     active: true,
   },
   ANALYZING: {
     label: 'Analyzing',
-    className: 'border-[#c7d2fe] bg-[#eef2ff] text-[#4338ca]',
+    className: 'border-primary/30 bg-accent text-primary',
     active: true,
   },
   COMPLETED: {
     label: 'Ready',
-    className: 'border-[#bbf7d0] bg-[#f0fdf4] text-[#047857]',
+    className: 'border-success/35 bg-success-surface text-success',
     active: false,
   },
   FAILED: {
     label: 'Needs attention',
-    className: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
+    className: 'border-destructive/25 bg-destructive/10 text-destructive',
     active: false,
   },
 } satisfies Record<MeetingStatusValue, { label: string; className: string; active: boolean }>;

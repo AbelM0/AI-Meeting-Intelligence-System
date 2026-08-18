@@ -16,7 +16,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        'z-50 min-w-52 overflow-hidden rounded-lg border border-[#e5e7eb] bg-white p-1.5 text-[#111827] shadow-[0_18px_48px_-22px_rgba(17,24,39,0.45)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'z-50 min-w-52 overflow-hidden rounded-lg border border-border bg-popover p-1.5 text-foreground shadow-[0_18px_48px_-22px_rgba(17,24,39,0.45)] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
         className,
       )}
       {...props}
@@ -32,7 +32,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'flex min-h-10 cursor-default select-none items-center gap-2 rounded-md px-3 text-sm font-medium outline-none transition data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-[#eef2ff] focus:text-[#3730a3]',
+      'flex min-h-10 cursor-default select-none items-center gap-2 rounded-md px-3 text-sm font-medium outline-none transition data-[disabled]:pointer-events-none data-[disabled]:opacity-50 focus:bg-accent focus:text-primary',
       className,
     )}
     {...props}

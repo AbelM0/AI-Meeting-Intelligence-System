@@ -64,15 +64,15 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
   if (selectedFile) {
     const extension = selectedFile.name.split('.').pop()?.toUpperCase();
     return (
-      <div className="rounded-lg border border-[#c7d2fe] bg-[#eef2ff] p-5">
+      <div className="rounded-lg border border-primary/30 bg-accent p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-[#4f46e5]">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-popover text-primary">
               <FileAudioIcon className="h-5 w-5" weight="duotone" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-[#111827]">{selectedFile.name}</p>
-              <p className="mt-1 font-mono text-xs text-[#4b5563]">
+              <p className="truncate text-sm font-semibold text-foreground">{selectedFile.name}</p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">
                 {formatFileSize(selectedFile.size)} / {extension}
               </p>
             </div>
@@ -81,7 +81,7 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
             type="button"
             onClick={() => onSelect(null)}
             disabled={disabled}
-            className="flex h-11 w-11 items-center justify-center rounded-lg text-[#6b7280] transition hover:bg-white hover:text-[#111827] active:translate-y-px disabled:opacity-50"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-popover hover:text-foreground active:translate-y-px disabled:opacity-50"
             aria-label="Remove selected recording"
           >
             <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
@@ -95,15 +95,15 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
     <div>
       <div
         {...getRootProps()}
-        className={`cursor-pointer rounded-lg border border-dashed p-5 transition duration-200 focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] sm:p-6 ${
+        className={`cursor-pointer rounded-lg border border-dashed p-5 transition duration-200 focus:outline-none focus:ring-4 focus:ring-ring/25 sm:p-6 ${
           isDragActive
-            ? 'border-[#4f46e5] bg-[#eef2ff]'
-            : 'border-[#c7cbd4] bg-[#f9fafb] hover:border-[#818cf8] hover:bg-[#f5f6ff]'
+            ? 'border-primary bg-accent'
+            : 'border-border bg-muted hover:border-primary/40 hover:bg-accent'
         } ${disabled ? 'cursor-not-allowed opacity-60' : ''}`}
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#c7d2fe] bg-white text-[#4f46e5]">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-popover text-primary">
             {isDragActive ? (
               <UploadSimpleIcon className="h-5 w-5" weight="bold" aria-hidden="true" />
             ) : (
@@ -111,18 +111,18 @@ export function AudioDropzone({ selectedFile, disabled = false, onSelect }: Audi
             )}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-[#111827]">
+            <p className="text-sm font-semibold text-foreground">
               {isDragActive ? 'Drop the recording here' : 'Drop a recording here or browse files'}
             </p>
-            <p className="mt-1 text-sm text-[#4b5563]">Choose one MP3, WAV, or M4A audio file.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Choose one MP3, WAV, or M4A audio file.</p>
           </div>
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6b7280] sm:text-right">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground sm:text-right">
             Up to {DEFAULT_MAX_AUDIO_FILE_SIZE_MB} MB
           </span>
         </div>
       </div>
       {error ? (
-        <p className="mt-2 text-sm font-medium text-red-700" role="alert">
+        <p className="mt-2 text-sm font-medium text-destructive" role="alert">
           {error}
         </p>
       ) : null}

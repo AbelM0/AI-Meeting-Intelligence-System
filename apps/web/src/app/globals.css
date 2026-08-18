@@ -21,6 +21,40 @@
     --destructive-foreground: 0 0% 100%;
     --primary: 243 75% 59%;
     --primary-foreground: 0 0% 98%;
+    --surface: 0 0% 100%;
+    --success: 160 84% 25%;
+    --success-surface: 152 81% 96%;
+    --warning: 32 95% 29%;
+    --warning-surface: 48 100% 96%;
+    --info: 192 91% 30%;
+    --info-surface: 189 94% 95%;
+  }
+
+  .dark {
+    --background: 225 29% 8%;
+    --foreground: 220 23% 94%;
+    --border: 222 18% 19%;
+    --input: 221 17% 28%;
+    --ring: 239 84% 72%;
+    --popover: 224 25% 11%;
+    --popover-foreground: 220 23% 94%;
+    --muted: 223 22% 15%;
+    --muted-foreground: 218 13% 68%;
+    --accent: 238 35% 18%;
+    --accent-foreground: 226 100% 87%;
+    --secondary: 223 22% 15%;
+    --secondary-foreground: 220 23% 94%;
+    --destructive: 0 63% 47%;
+    --destructive-foreground: 0 0% 98%;
+    --primary: 243 75% 59%;
+    --primary-foreground: 0 0% 98%;
+    --surface: 224 25% 11%;
+    --success: 151 55% 62%;
+    --success-surface: 154 35% 14%;
+    --warning: 43 88% 64%;
+    --warning-surface: 35 40% 14%;
+    --info: 189 78% 62%;
+    --info-surface: 191 40% 14%;
   }
 
   * {
@@ -45,8 +79,13 @@
     color: rgb(30 27 75);
   }
 
+  .dark ::selection {
+    background: rgb(79 70 229 / 0.55);
+    color: rgb(238 242 255);
+  }
+
   :focus-visible {
-    outline: 2px solid #4f46e5;
+    outline: 2px solid hsl(var(--ring));
     outline-offset: 3px;
   }
 }

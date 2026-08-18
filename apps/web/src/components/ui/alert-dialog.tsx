@@ -7,16 +7,22 @@ import { cn } from '@/lib/utils';
 const AlertDialog = AlertDialogPrimitive.Root;
 const AlertDialogTrigger = AlertDialogPrimitive.Trigger;
 
+type AlertDialogContentProps = React.ComponentPropsWithoutRef<
+  typeof AlertDialogPrimitive.Content
+> & {
+  portalContainer?: HTMLElement | null;
+};
+
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <AlertDialogPrimitive.Portal>
+  AlertDialogContentProps
+>(({ className, portalContainer, ...props }, ref) => (
+  <AlertDialogPrimitive.Portal container={portalContainer ?? undefined}>
     <AlertDialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[#111827]/55 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-[0_28px_80px_-28px_rgba(17,24,39,0.45)] focus:outline-none sm:p-7',
+        'fixed left-1/2 top-1/2 z-50 w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg bg-popover p-6 shadow-[0_28px_80px_-28px_rgba(17,24,39,0.45)] focus:outline-none sm:p-7',
         className,
       )}
       {...props}
@@ -31,7 +37,7 @@ const AlertDialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Title
     ref={ref}
-    className={cn('text-xl font-semibold tracking-[-0.02em] text-[#111827]', className)}
+    className={cn('text-xl font-semibold tracking-[-0.02em] text-foreground', className)}
     {...props}
   />
 ));
@@ -43,7 +49,7 @@ const AlertDialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Description
     ref={ref}
-    className={cn('mt-2 text-sm leading-6 text-[#4b5563]', className)}
+    className={cn('mt-2 text-sm leading-6 text-muted-foreground', className)}
     {...props}
   />
 ));

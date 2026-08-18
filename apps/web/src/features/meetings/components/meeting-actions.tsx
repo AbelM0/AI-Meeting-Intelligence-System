@@ -106,7 +106,7 @@ export function MeetingActions({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151] transition hover:border-[#9ca3af] hover:bg-[#f9fafb]"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground transition hover:border-input hover:bg-muted"
           >
             <DownloadSimpleIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
             Export
@@ -142,7 +142,7 @@ export function MeetingActions({
       <button
         type="button"
         onClick={() => dialogElement?.showModal()}
-        className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#4f46e5] px-4 text-sm font-semibold text-white transition hover:bg-[#4338ca]"
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90"
       >
         <ShareNetworkIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
         Share
@@ -151,23 +151,23 @@ export function MeetingActions({
       <dialog
         ref={setDialogElement}
         id={dialogId}
-        className="modal-surface max-h-[90dvh] w-[min(92vw,34rem)] overflow-y-auto rounded-lg bg-white p-0 text-[#111827] shadow-2xl backdrop:bg-[#111827]/45"
+        className="modal-surface w-[min(92vw,34rem)] overflow-visible rounded-lg bg-popover p-0 text-foreground shadow-2xl backdrop:bg-[#111827]/45"
         aria-labelledby={`${dialogId}-title`}
       >
-        <div className="p-5 sm:p-7">
-          <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] pb-5">
+        <div className="max-h-[90dvh] overflow-y-auto rounded-lg p-5 sm:p-7">
+          <div className="flex items-start justify-between gap-4 border-b border-border pb-5">
             <div>
               <h2 id={`${dialogId}-title`} className="text-xl font-semibold tracking-[-0.02em]">
                 Share meeting
               </h2>
-              <p className="mt-1 text-sm leading-6 text-[#4b5563]">
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Anyone with the link can read approved meeting content. Audio is never shared.
               </p>
             </div>
             <button
               type="button"
               onClick={() => dialogElement?.close()}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#6b7280] hover:bg-[#f3f4f6]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
               aria-label="Close share meeting dialog"
             >
               <XIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
@@ -176,7 +176,7 @@ export function MeetingActions({
 
           {sharesQuery.isError ? (
             <div
-              className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              className="mt-5 rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive"
               role="alert"
             >
               {getApiErrorMessage(sharesQuery.error, 'Share settings are unavailable. Try again.')}
@@ -186,7 +186,7 @@ export function MeetingActions({
               <div>
                 <span
                   id={`${dialogId}-expiration`}
-                  className="text-sm font-semibold text-[#374151]"
+                  className="text-sm font-semibold text-muted-foreground"
                 >
                   Expires
                 </span>
@@ -195,7 +195,7 @@ export function MeetingActions({
                   onValueChange={(value) => setExpiration(value as ShareExpirationValue)}
                 >
                   <SelectTrigger
-                    className="mt-2 min-h-11 border-[#d1d5db] bg-[#f9fafb] shadow-none"
+                    className="mt-2 min-h-11 border-border bg-muted shadow-none"
                     aria-labelledby={`${dialogId}-expiration`}
                   >
                     <SelectValue />
@@ -211,8 +211,8 @@ export function MeetingActions({
               </div>
 
               {createdUrl ? (
-                <div className="rounded-lg bg-[#eef2ff] p-4">
-                  <p className="break-all font-mono text-xs leading-5 text-[#3730a3]">
+                <div className="rounded-lg bg-accent p-4">
+                  <p className="break-all font-mono text-xs leading-5 text-primary">
                     {createdUrl}
                   </p>
                   <button
@@ -224,37 +224,37 @@ export function MeetingActions({
                         "We couldn't copy the share link.",
                       )
                     }
-                    className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-[#3730a3]"
+                    className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-popover px-4 text-sm font-semibold text-primary"
                   >
                     <LinkIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
                     Copy link
                   </button>
                 </div>
               ) : activeShare ? (
-                <p className="rounded-lg bg-[#f9fafb] p-4 text-sm leading-6 text-[#4b5563]">
+                <p className="rounded-lg bg-muted p-4 text-sm leading-6 text-muted-foreground">
                   An active share exists. Create a new link to replace it, or revoke the current
                   link. Existing token values are intentionally not stored.
                 </p>
               ) : null}
 
-              <div className="flex flex-col-reverse gap-3 border-t border-[#e5e7eb] pt-5 sm:flex-row sm:justify-between">
+              <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-between">
                 {activeShare ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <button
                         type="button"
-                        className="min-h-11 rounded-lg px-4 text-sm font-semibold text-[#b91c1c] hover:bg-red-50"
+                        className="min-h-11 rounded-lg px-4 text-sm font-semibold text-destructive hover:bg-destructive/10"
                       >
                         Revoke current link
                       </button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent>
+                    <AlertDialogContent portalContainer={dialogElement}>
                       <AlertDialogTitle>Revoke this share link?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Anyone using the current link will immediately lose access.
                       </AlertDialogDescription>
                       <div className="mt-6 flex justify-end gap-3">
-                        <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] px-4 text-sm font-semibold">
+                        <AlertDialogCancel className="min-h-11 rounded-lg border border-border px-4 text-sm font-semibold">
                           Cancel
                         </AlertDialogCancel>
                         <AlertDialogAction
@@ -262,7 +262,7 @@ export function MeetingActions({
                             revokeShare.mutate(activeShare.id);
                             setCreatedUrl(null);
                           }}
-                          className="min-h-11 rounded-lg bg-[#b91c1c] px-4 text-sm font-semibold text-white"
+                          className="min-h-11 rounded-lg bg-destructive px-4 text-sm font-semibold text-white"
                         >
                           Revoke link
                         </AlertDialogAction>
@@ -281,7 +281,7 @@ export function MeetingActions({
                       { onSuccess: (share) => setCreatedUrl(share.url) },
                     )
                   }
-                  className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition hover:bg-[#4338ca] disabled:cursor-wait disabled:opacity-60"
+                  className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
                 >
                   {createShare.isPending ? 'Creating link…' : 'Create share link'}
                 </button>

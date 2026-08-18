@@ -54,18 +54,18 @@ function ProcessingStep({
     <li
       className={cn(
         'flex min-h-9 items-center gap-3 text-sm font-medium',
-        state === 'pending' && 'text-[#9ca3af]',
-        state === 'complete' && 'text-[#374151]',
-        state === 'current' && 'text-[#111827]',
-        state === 'failed' && 'text-[#b91c1c]',
+        state === 'pending' && 'text-muted-foreground',
+        state === 'complete' && 'text-muted-foreground',
+        state === 'current' && 'text-foreground',
+        state === 'failed' && 'text-destructive',
       )}
       aria-current={state === 'current' ? 'step' : undefined}
     >
       <Icon
         className={cn(
           'h-5 w-5 shrink-0',
-          state === 'complete' && 'text-[#047857]',
-          state === 'current' && 'text-[#4f46e5] motion-safe:animate-spin',
+          state === 'complete' && 'text-success',
+          state === 'current' && 'text-primary motion-safe:animate-spin',
         )}
         weight={state === 'pending' ? 'regular' : 'duotone'}
         aria-hidden="true"
@@ -118,7 +118,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
   if (compact && status === 'COMPLETED') {
     return (
       <section className="mt-5 border-t pt-5" aria-labelledby="reprocess-title">
-        <h3 id="reprocess-title" className="text-sm font-semibold text-[#111827]">
+        <h3 id="reprocess-title" className="text-sm font-semibold text-foreground">
           Reprocess meeting
         </h3>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -130,7 +130,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
             <button
               type="button"
               disabled={isPending}
-              className="mt-4 inline-flex h-9 items-center gap-2 rounded-md border bg-white px-3 text-sm font-medium text-[#374151] transition hover:bg-muted disabled:opacity-60"
+              className="mt-4 inline-flex h-9 items-center gap-2 rounded-md border bg-popover px-3 text-sm font-medium text-muted-foreground transition hover:bg-muted disabled:opacity-60"
             >
               <ArrowClockwiseIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
               {reprocessMutation.isPending ? 'Queueing…' : 'Reprocess from recording'}
@@ -143,12 +143,12 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
               and action items. Your recording remains private.
             </AlertDialogDescription>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151]">
+              <AlertDialogCancel className="min-h-11 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground">
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => reprocessMutation.mutate(meeting.id)}
-                className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+                className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-white"
               >
                 Start reprocessing
               </AlertDialogAction>
@@ -161,16 +161,16 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
 
   return (
     <section
-      className="mt-7 overflow-hidden rounded-lg border border-[#e5e7eb] bg-white"
+      className="mt-7 overflow-hidden rounded-lg border border-border bg-popover"
       aria-labelledby="processing-title"
     >
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(260px,0.55fr)]">
-        <div className="p-5 sm:p-7 lg:border-r lg:border-[#e5e7eb]">
+        <div className="p-5 sm:p-7 lg:border-r lg:border-border">
           <div className="flex items-start justify-between gap-5">
             <div>
               <h2
                 id="processing-title"
-                className="text-xl font-semibold tracking-[-0.02em] text-[#111827]"
+                className="text-xl font-semibold tracking-[-0.02em] text-foreground"
               >
                 {status === 'COMPLETED'
                   ? 'Meeting intelligence ready'
@@ -178,7 +178,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
                     ? 'Meeting analysis failed'
                     : 'Understanding your meeting'}
               </h2>
-              <p className="mt-1 max-w-[65ch] text-sm leading-6 text-[#6b7280]">
+              <p className="mt-1 max-w-[65ch] text-sm leading-6 text-muted-foreground">
                 {status === 'COMPLETED'
                   ? 'Your summary, decisions, action items, and timestamped transcript are ready to review.'
                   : status === 'FAILED'
@@ -188,14 +188,14 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
                       : 'Start the processing pipeline when you are ready.'}
               </p>
             </div>
-            <span className="shrink-0 font-mono text-xs font-semibold text-[#4b5563]">
+            <span className="shrink-0 font-mono text-xs font-semibold text-muted-foreground">
               {progress}%
             </span>
           </div>
 
           <div className="mt-7" aria-live="polite">
             <div
-              className="h-2 overflow-hidden rounded-full bg-[#e5e7eb]"
+              className="h-2 overflow-hidden rounded-full bg-muted"
               role="progressbar"
               aria-label="Meeting processing progress"
               aria-valuemin={0}
@@ -204,19 +204,19 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
             >
               <div
                 className={cn(
-                  'h-full rounded-full bg-[#4f46e5] transition-[width] duration-500',
-                  status === 'FAILED' && 'bg-[#b91c1c]',
-                  status === 'COMPLETED' && 'bg-[#047857]',
+                  'h-full rounded-full bg-primary transition-[width] duration-500',
+                  status === 'FAILED' && 'bg-destructive',
+                  status === 'COMPLETED' && 'bg-success',
                 )}
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 font-mono text-xs text-[#6b7280]">{progress}% complete</p>
+            <p className="mt-2 font-mono text-xs text-muted-foreground">{progress}% complete</p>
           </div>
 
           {processing?.error ? (
             <div
-              className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+              className="mt-5 rounded-lg border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive"
               role="alert"
             >
               {processing.error}
@@ -231,7 +231,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
                   : processMutation.mutate(meeting.id)
               }
               disabled={isPending || isActive}
-              className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white transition duration-200 hover:bg-[#4338ca] active:translate-y-px focus:outline-none focus:ring-4 focus:ring-[#e0e7ff] disabled:cursor-not-allowed disabled:bg-[#e5e7eb] disabled:text-[#6b7280]"
+              className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition duration-200 hover:bg-primary/90 active:translate-y-px focus:outline-none focus:ring-4 focus:ring-ring/25 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
             >
               {isPending ? (
                 <SpinnerGapIcon className="h-4 w-4 animate-spin" weight="bold" aria-hidden="true" />
@@ -255,7 +255,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
                 <button
                   type="button"
                   disabled={isPending || isActive}
-                  className="mt-3 min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151] transition hover:border-[#9ca3af] hover:bg-[#f9fafb] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-3 min-h-11 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground transition hover:border-input hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Reprocess from recording
                 </button>
@@ -267,12 +267,12 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
                   and action items. Your recording remains private.
                 </AlertDialogDescription>
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <AlertDialogCancel className="min-h-11 rounded-lg border border-[#d1d5db] bg-white px-4 text-sm font-semibold text-[#374151]">
+                  <AlertDialogCancel className="min-h-11 rounded-lg border border-border bg-popover px-4 text-sm font-semibold text-muted-foreground">
                     Cancel
                   </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => reprocessMutation.mutate(meeting.id)}
-                    className="min-h-11 rounded-lg bg-[#4f46e5] px-5 text-sm font-semibold text-white"
+                    className="min-h-11 rounded-lg bg-primary px-5 text-sm font-semibold text-white"
                   >
                     Start reprocessing
                   </AlertDialogAction>
@@ -282,7 +282,7 @@ export function MeetingProcessing({ meeting, compact = false }: Readonly<{ meeti
           ) : null}
         </div>
 
-        <div className="border-t border-[#e5e7eb] bg-[#f8fafc] p-5 sm:p-7 lg:border-t-0">
+        <div className="border-t border-border bg-muted p-5 sm:p-7 lg:border-t-0">
           <ol className="space-y-2" aria-label="Processing stages">
             {steps.map((step, index) => (
               <ProcessingStep

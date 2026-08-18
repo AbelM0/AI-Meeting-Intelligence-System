@@ -10,7 +10,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 
   if (!isLoaded) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#f7f8fc] text-sm text-[#6b7280]">
+      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
         Loading secure workspace…
       </div>
     );

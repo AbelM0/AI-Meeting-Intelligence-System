@@ -51,19 +51,19 @@ export function MeetingsDashboard() {
           <label className="relative block">
             <span className="sr-only">Search meetings</span>
             <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" weight="bold" aria-hidden="true" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search meetings..." className="h-9 w-full rounded-md border bg-white pl-9 pr-3 text-sm outline-none transition hover:border-[#9ca3af] focus:border-primary focus:ring-2 focus:ring-[#e0e7ff]" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search meetings..." className="h-9 w-full rounded-md border bg-popover pl-9 pr-3 text-sm outline-none transition hover:border-input focus:border-primary focus:ring-2 focus:ring-ring/25" />
           </label>
           <div>
             <span id="meeting-status-filter" className="sr-only">Meeting status</span>
             <Select value={status} onValueChange={(value) => setStatus(value as StatusFilter)}>
-              <SelectTrigger className="bg-white shadow-none" aria-labelledby="meeting-status-filter"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-popover shadow-none" aria-labelledby="meeting-status-filter"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="ALL">All status</SelectItem><SelectItem value="READY">Ready</SelectItem><SelectItem value="PROCESSING">Processing</SelectItem><SelectItem value="FAILED">Failed</SelectItem><SelectItem value="UPLOADED">Uploaded</SelectItem></SelectContent>
             </Select>
           </div>
           <div>
             <span id="meeting-sort" className="sr-only">Sort meetings</span>
             <Select value={sort} onValueChange={(value) => setSort(value as SortOrder)}>
-              <SelectTrigger className="bg-white shadow-none" aria-labelledby="meeting-sort"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="bg-popover shadow-none" aria-labelledby="meeting-sort"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="NEWEST">Newest first</SelectItem><SelectItem value="OLDEST">Oldest first</SelectItem></SelectContent>
             </Select>
           </div>
@@ -71,7 +71,7 @@ export function MeetingsDashboard() {
         {meetingsQuery.isPending ? (
           <div className="divide-y" aria-label="Loading meetings">{[1, 2, 3, 4].map((item) => <div key={item} className="h-[104px] animate-pulse bg-muted/70" />)}</div>
         ) : meetingsQuery.isError ? (
-          <div className="my-5 border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert"><div className="flex items-start gap-3"><WarningIcon className="mt-0.5 h-5 w-5 shrink-0" weight="duotone" aria-hidden="true" /><div><p className="font-semibold">Meetings unavailable</p><p className="mt-1">{getApiErrorMessage(meetingsQuery.error, 'Check the API connection and try again.')}</p></div></div></div>
+          <div className="my-5 border border-destructive/25 bg-destructive/10 p-4 text-sm text-destructive" role="alert"><div className="flex items-start gap-3"><WarningIcon className="mt-0.5 h-5 w-5 shrink-0" weight="duotone" aria-hidden="true" /><div><p className="font-semibold">Meetings unavailable</p><p className="mt-1">{getApiErrorMessage(meetingsQuery.error, 'Check the API connection and try again.')}</p></div></div></div>
         ) : meetings.length === 0 ? (
           <div className="grid min-h-72 place-items-center border-b px-6 py-12 text-center"><div><WaveformIcon className="mx-auto h-6 w-6 text-primary" weight="duotone" aria-hidden="true" /><h2 className="mt-4 font-semibold">No meetings yet</h2><p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-muted-foreground">Upload your first recording to turn it into a transcript, decisions and action items.</p></div></div>
         ) : filteredMeetings.length === 0 ? (
@@ -79,7 +79,7 @@ export function MeetingsDashboard() {
         ) : (
           <div className="divide-y" role="list" aria-label="Meeting list">{filteredMeetings.map((meeting) => <MeetingCard key={meeting.id} meeting={meeting} />)}</div>
         )}
-        {meetingsQuery.hasNextPage && !search.trim() ? <div className="border-t pt-4 text-center"><button type="button" onClick={() => void meetingsQuery.fetchNextPage()} disabled={meetingsQuery.isFetchingNextPage} className="h-9 rounded-md border bg-white px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-60">{meetingsQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}</button></div> : null}
+        {meetingsQuery.hasNextPage && !search.trim() ? <div className="border-t pt-4 text-center"><button type="button" onClick={() => void meetingsQuery.fetchNextPage()} disabled={meetingsQuery.isFetchingNextPage} className="h-9 rounded-md border bg-popover px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-60">{meetingsQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}</button></div> : null}
       </section>
     </div>
   );
