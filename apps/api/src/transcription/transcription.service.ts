@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { StorageService } from '../storage/storage.service';
-import { DEFAULT_DEEPGRAM_SIGNED_URL_TTL_SECONDS } from './transcription.constants';
+import { deepgramSignedUrlTtlSeconds } from './transcription.constants';
 import {
   TRANSCRIPTION_PROVIDER,
   type TranscriptionInput,
@@ -25,6 +26,7 @@ export class TranscriptionService {
   constructor(
     private readonly storage: StorageService,
     @Inject(TRANSCRIPTION_PROVIDER) private readonly provider: TranscriptionProvider,
+    private readonly config: ConfigService,
   ) {}
 
   async transcribeMeeting(
@@ -38,7 +40,7 @@ export class TranscriptionService {
 
     const audioUrl = await this.storage.createSignedReadUrl(
       input.audioPath,
-      DEFAULT_DEEPGRAM_SIGNED_URL_TTL_SECONDS,
+      this.signedUrlTtlSeconds(),
     );
     const result = await this.provider.transcribe({
       audioUrl,
@@ -52,6 +54,12 @@ export class TranscriptionService {
       `Transcription completed meetingId=${input.meetingId} provider=deepgram stage=transcribing segments=${result.segments.length} speakers=${result.speakers.length} duration=${result.duration ?? 'unknown'}`,
     );
     return result;
+  }
+
+  private signedUrlTtlSeconds(): number {
+    return deepgramSignedUrlTtlSeconds(
+      this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000),
+    );
   }
 
   private validateResult(result: TranscriptionResult): void {

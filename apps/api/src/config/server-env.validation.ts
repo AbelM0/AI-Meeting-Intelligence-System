@@ -58,6 +58,7 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
     MEETING_WORKER_CONCURRENCY: 2,
     MAX_ACTIVE_MEETINGS_PER_USER: 3,
     DEEPGRAM_TIMEOUT_MS: 600_000,
+    DEEPGRAM_NETWORK_RETRY_DELAY_MS: 1_000,
     DEEPSEEK_TIMEOUT_MS: 120_000,
     SUPABASE_TIMEOUT_MS: 15_000,
     API_RATE_LIMIT: 120,

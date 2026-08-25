@@ -154,6 +154,7 @@ Deletion webhooks deliberately anonymize the local profile while preserving owne
 | `DEEPGRAM_TRANSCRIPTION_MODEL`      | Deepgram transcription model (default `whisper`)             |
 | `DEEPGRAM_DIARIZATION_MODEL`        | Deepgram diarization model (default `latest`)                |
 | `DEEPGRAM_TIMEOUT_MS`               | Deepgram request timeout (default `600000`)                  |
+| `DEEPGRAM_NETWORK_RETRY_DELAY_MS`   | Delay before one transient network retry (default `1000`)    |
 | `FFMPEG_PATH`                       | FFmpeg executable path (default `ffmpeg`)                    |
 | `FFPROBE_PATH`                      | FFprobe executable path (default `ffprobe`)                  |
 | `DEEPSEEK_API_KEY`                  | Server-only DeepSeek credential                              |

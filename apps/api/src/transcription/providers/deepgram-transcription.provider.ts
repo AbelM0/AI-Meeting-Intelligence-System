@@ -17,6 +17,24 @@ import {
 
 type RawRecord = Record<string, unknown>;
 
+type DeepgramErrorDetails = {
+  status: number | null;
+  requestId: string | null;
+  transportCode: string | null;
+  transportName: string | null;
+};
+
+const RETRYABLE_TRANSPORT_CODES = new Set([
+  'EAI_AGAIN',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ENETUNREACH',
+  'ENOTFOUND',
+  'EPIPE',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET',
+]);
+
 export type TranscriptionFailureCategory =
   | 'authentication'
   | 'insufficient_credits'
@@ -29,8 +47,11 @@ export type TranscriptionFailureCategory =
   | 'malformed_response';
 
 export class TranscriptionProviderError extends Error {
+  cause: unknown = undefined;
   providerStatus: number | null = null;
   providerRequestId: string | null = null;
+  transportCode: string | null = null;
+  transportName: string | null = null;
 
   constructor(
     message: string,
@@ -51,8 +72,10 @@ type DeepgramTraceResult = {
 export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   private readonly logger = new Logger(DeepgramTranscriptionProvider.name);
   private readonly client: DeepgramClient;
+  private readonly mediaClient: DeepgramClient['listen']['v1']['media'];
   private readonly model: string;
   private readonly diarizationModel: string;
+  private readonly networkRetryDelayMs: number;
   private readonly tracedTranscription: (
     input: TranscriptionInput,
   ) => Promise<DeepgramTraceResult>;
@@ -69,29 +92,15 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
     this.diarizationModel =
       config.get<string>('DEEPGRAM_DIARIZATION_MODEL')?.trim() ||
       DEFAULT_DEEPGRAM_DIARIZATION_MODEL;
+    this.networkRetryDelayMs = config.get<number>('DEEPGRAM_NETWORK_RETRY_DELAY_MS', 1_000);
     this.client = new DeepgramClient({ apiKey });
+    this.mediaClient = this.client.listen.v1.media;
     this.tracedTranscription = traceable(
       async (input: TranscriptionInput): Promise<DeepgramTraceResult> => {
         this.addTraceContext(input);
 
         try {
-          const response = await this.client.listen.v1.media.transcribeUrl(
-            {
-              url: input.audioUrl,
-              model: this.model,
-              smart_format: true,
-              utterances: true,
-              diarize_model: this.diarizationModel,
-              punctuate: true,
-              ...(input.language ? { language: input.language } : { detect_language: true }),
-            },
-            {
-              timeoutInSeconds: Math.ceil(
-                this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000) / 1_000,
-              ),
-              maxRetries: 0,
-            },
-          );
+          const response = await this.transcribeWithNetworkRetry(input);
           const normalized = normalizeDeepgramResponse(response);
 
           return {
@@ -102,8 +111,6 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
           };
         } catch (error) {
           const mappedError = this.mapError(error);
-          mappedError.providerStatus = this.statusOf(error);
-          mappedError.providerRequestId = getRequestId(error);
           this.addTraceFailure(mappedError);
           throw mappedError;
         }
@@ -145,9 +152,42 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
     } catch (error) {
       const mappedError = this.mapError(error);
       this.logger.warn(
-        `Deepgram transcription failed meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} requestId=${getRequestId(error) ?? 'unknown'} stage=transcribing category=${mappedError.category} retryable=${mappedError.retryable} status=${this.statusOf(error) ?? 'unknown'}`,
+        `Deepgram transcription failed meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} requestId=${mappedError.providerRequestId ?? 'unknown'} stage=transcribing category=${mappedError.category} retryable=${mappedError.retryable} status=${mappedError.providerStatus ?? 'unknown'} transportCode=${mappedError.transportCode ?? 'unknown'} transportName=${mappedError.transportName ?? 'unknown'}`,
       );
       throw mappedError;
+    }
+  }
+
+  private async transcribeWithNetworkRetry(input: TranscriptionInput): Promise<unknown> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await this.mediaClient.transcribeUrl(
+          {
+            url: input.audioUrl,
+            model: this.model,
+            smart_format: true,
+            utterances: true,
+            diarize_model: this.diarizationModel,
+            punctuate: true,
+            ...(input.language ? { language: input.language } : { detect_language: true }),
+          },
+          {
+            timeoutInSeconds: Math.ceil(
+              this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000) / 1_000,
+            ),
+            // The generated SDK retries HTTP responses, but not rejected fetches.
+            maxRetries: 0,
+          },
+        );
+      } catch (error) {
+        if (attempt > 0 || !isRetryableDeepgramTransportError(error)) throw error;
+
+        const details = getDeepgramErrorDetails(error);
+        this.logger.warn(
+          `Deepgram transport retry scheduled meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} stage=transcribing retryAttempt=1 delayMs=${this.networkRetryDelayMs} transportCode=${details.transportCode ?? 'unknown'} transportName=${details.transportName ?? 'unknown'}`,
+        );
+        await delay(this.networkRetryDelayMs);
+      }
     }
   }
 
@@ -172,6 +212,8 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       retryable: error.retryable,
       provider_status: error.providerStatus,
       provider_request_id: error.providerRequestId,
+      transport_code: error.transportCode,
+      transport_name: error.transportName,
     };
     runTree.tags = [...(runTree.tags ?? []), `error:${error.category}`];
   }
@@ -179,104 +221,75 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   private mapError(error: unknown): TranscriptionProviderError {
     if (error instanceof TranscriptionProviderError) return error;
 
-    const status = this.statusOf(error);
+    const details = getDeepgramErrorDetails(error);
+    const status = details.status;
+    let mappedError: TranscriptionProviderError;
     if (status === 401 || status === 403) {
-      return new TranscriptionProviderError(
+      mappedError = new TranscriptionProviderError(
         'Transcription authentication is not configured correctly.',
         'authentication',
         false,
       );
-    }
-    if (status === 402) {
-      return new TranscriptionProviderError(
+    } else if (status === 402) {
+      mappedError = new TranscriptionProviderError(
         'The transcription provider account does not have enough credits.',
         'insufficient_credits',
         false,
       );
-    }
-    if (status === 413) {
-      return new TranscriptionProviderError(
+    } else if (status === 413) {
+      mappedError = new TranscriptionProviderError(
         'The recording is too large for the transcription provider.',
         'request_too_large',
         false,
       );
-    }
-    if (status === 415 || status === 422 || status === 400) {
-      return new TranscriptionProviderError(
+    } else if (status === 415 || status === 422 || status === 400) {
+      mappedError = new TranscriptionProviderError(
         'The recording could not be processed by the transcription provider.',
         'unsupported_audio',
         false,
       );
-    }
-    if (status === 408) {
-      return new TranscriptionProviderError(
+    } else if (status === 408) {
+      mappedError = new TranscriptionProviderError(
         'The transcription provider timed out. Retry processing when the service is available.',
         'timeout',
         true,
       );
-    }
-    if (status === 429) {
-      return new TranscriptionProviderError(
+    } else if (status === 429) {
+      mappedError = new TranscriptionProviderError(
         'Transcription is temporarily rate limited and will retry automatically.',
         'rate_limit',
         true,
       );
-    }
-    if (typeof status === 'number' && status >= 500) {
-      return new TranscriptionProviderError(
+    } else if (typeof status === 'number' && status >= 500) {
+      mappedError = new TranscriptionProviderError(
         'The transcription provider is temporarily unavailable.',
         'provider',
         true,
       );
-    }
-
-    const code = this.codeOf(error);
-    if (
-      code === 'ETIMEDOUT' ||
-      code === 'UND_ERR_CONNECT_TIMEOUT' ||
-      code === 'ECONNRESET' ||
-      code === 'ECONNREFUSED' ||
-      code === 'ENOTFOUND' ||
-      this.nameOf(error)?.toLowerCase().includes('timeout')
+    } else if (
+      details.transportCode === 'ETIMEDOUT' ||
+      details.transportCode === 'UND_ERR_CONNECT_TIMEOUT' ||
+      details.transportName?.toLowerCase().includes('timeout')
     ) {
-      return new TranscriptionProviderError(
+      mappedError = new TranscriptionProviderError(
         'The transcription provider timed out or could not be reached.',
         'timeout',
         true,
       );
+    } else {
+      mappedError = new TranscriptionProviderError(
+        'Transcription failed. Retry processing when the service is available.',
+        'network',
+        true,
+      );
     }
 
-    return new TranscriptionProviderError(
-      'Transcription failed. Retry processing when the service is available.',
-      'network',
-      true,
-    );
-  }
-
-  private statusOf(error: unknown): number | null {
-    if (!isRecord(error)) return null;
-
-    for (const key of ['providerStatus', 'status', 'statusCode', 'status_code']) {
-      const status = Number(error[key]);
-      if (Number.isFinite(status)) return status;
-    }
-
-    if (isRecord(error.response)) {
-      const status = Number(error.response.status);
-      return Number.isFinite(status) ? status : null;
-    }
-
-    return null;
-  }
-
-  private codeOf(error: unknown): string | null {
-    if (!isRecord(error)) return null;
-    return typeof error.code === 'string' ? error.code : null;
-  }
-
-  private nameOf(error: unknown): string | null {
-    if (!isRecord(error)) return null;
-    return typeof error.name === 'string' ? error.name : null;
+    mappedError.providerStatus = details.status;
+    mappedError.providerRequestId = details.requestId;
+    mappedError.transportCode = details.transportCode;
+    mappedError.transportName = details.transportName;
+    mappedError.cause = error;
+    return mappedError;
   }
 }
 
@@ -433,6 +446,69 @@ function cleanText(text: string): string {
 
 function isRecord(value: unknown): value is RawRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+export function getDeepgramErrorDetails(error: unknown): DeepgramErrorDetails {
+  const chain = errorChain(error);
+  return {
+    status: firstNumber(chain, ['providerStatus', 'status', 'statusCode', 'status_code']),
+    requestId: chain.map(getRequestId).find((value) => value !== null) ?? null,
+    transportCode: firstString(chain, 'code'),
+    transportName: firstString(chain, 'name'),
+  };
+}
+
+export function isRetryableDeepgramTransportError(error: unknown): boolean {
+  const details = getDeepgramErrorDetails(error);
+  if (details.status !== null || details.requestId !== null) return false;
+  if (details.transportCode && RETRYABLE_TRANSPORT_CODES.has(details.transportCode)) return true;
+
+  return errorChain(error).some(
+    (entry) => typeof entry.message === 'string' && entry.message.toLowerCase() === 'fetch failed',
+  );
+}
+
+function errorChain(error: unknown): RawRecord[] {
+  const chain: RawRecord[] = [];
+  const visited = new Set<unknown>();
+  let current: unknown = error;
+
+  while (isRecord(current) && !visited.has(current) && chain.length < 6) {
+    chain.push(current);
+    visited.add(current);
+    current = current.cause;
+  }
+  return chain;
+}
+
+function firstNumber(chain: RawRecord[], keys: string[]): number | null {
+  for (const entry of chain) {
+    for (const key of keys) {
+      const value = entry[key];
+      if (value === null || value === undefined || value === '') continue;
+      const number = Number(value);
+      if (Number.isFinite(number)) return number;
+    }
+    if (isRecord(entry.response)) {
+      const value = entry.response.status;
+      if (value === null || value === undefined || value === '') continue;
+      const number = Number(value);
+      if (Number.isFinite(number)) return number;
+    }
+  }
+  return null;
+}
+
+function firstString(chain: RawRecord[], key: string): string | null {
+  for (const entry of chain) {
+    const value = entry[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function malformedResponse(): TranscriptionProviderError {

@@ -1,9 +1,14 @@
 import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { ConfigService } from '@nestjs/config';
 import {
+  DeepgramTranscriptionProvider,
   TranscriptionProviderError,
+  getDeepgramErrorDetails,
+  isRetryableDeepgramTransportError,
   normalizeDeepgramResponse,
 } from './deepgram-transcription.provider';
+import { deepgramSignedUrlTtlSeconds } from '../transcription.constants';
 
 function response(overrides: Record<string, unknown> = {}) {
   return {
@@ -96,4 +101,74 @@ void test('rejects malformed timestamps and missing canonical transcript data', 
   );
 
   assert.throws(() => normalizeDeepgramResponse({ results: { channels: [] } }), /invalid response/);
+});
+
+void test('extracts a nested fetch cause without converting a null status to zero', () => {
+  const error = Object.assign(new TypeError('fetch failed'), {
+    cause: Object.assign(new Error('connection timed out'), {
+      code: 'UND_ERR_CONNECT_TIMEOUT',
+    }),
+  });
+
+  assert.deepEqual(getDeepgramErrorDetails(error), {
+    status: null,
+    requestId: null,
+    transportCode: 'UND_ERR_CONNECT_TIMEOUT',
+    transportName: 'TypeError',
+  });
+  assert.equal(isRetryableDeepgramTransportError(error), true);
+
+  const mapped = new TranscriptionProviderError('mapped', 'network', true);
+  assert.equal(getDeepgramErrorDetails(mapped).status, null);
+});
+
+void test('does not classify provider HTTP responses as transport retries', () => {
+  assert.equal(
+    isRetryableDeepgramTransportError({
+      statusCode: 503,
+      metadata: { request_id: 'provider-request' },
+    }),
+    false,
+  );
+});
+
+void test('keeps the signed audio URL valid beyond the Deepgram timeout', () => {
+  assert.equal(deepgramSignedUrlTtlSeconds(600_000), 660);
+  assert.equal(deepgramSignedUrlTtlSeconds(60_000), 300);
+});
+
+void test('retries one rejected fetch inside the same transcription call', async () => {
+  const provider = new DeepgramTranscriptionProvider(
+    new ConfigService({
+      DEEPGRAM_API_KEY: 'fixture-key',
+      DEEPGRAM_NETWORK_RETRY_DELAY_MS: 1,
+      DEEPGRAM_TIMEOUT_MS: 10_000,
+    }),
+  );
+  let attempts = 0;
+  const client = provider as unknown as {
+    mediaClient: {
+      transcribeUrl: (...args: unknown[]) => Promise<unknown>;
+    };
+  };
+  client.mediaClient.transcribeUrl = () => {
+    attempts += 1;
+    if (attempts === 1) {
+      return Promise.reject(
+        Object.assign(new TypeError('fetch failed'), {
+          cause: { code: 'EAI_AGAIN' },
+        }),
+      );
+    }
+    return Promise.resolve(response());
+  };
+
+  const result = await provider.transcribe({
+    audioUrl: 'https://storage.example.test/signed-audio',
+    language: null,
+    meetingId: 'meeting-fixture',
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.text, 'Good morning. I will send the plan.');
 });
