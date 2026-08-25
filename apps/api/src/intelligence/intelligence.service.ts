@@ -79,6 +79,7 @@ export class IntelligenceService {
 
     await onProgress?.(INTELLIGENCE_STAGES.SUMMARY, 78);
     const summary = await this.generateValidated(
+      meetingId,
       'summary',
       SUMMARY_SYSTEM_PROMPT,
       buildSummaryPrompt(timestampedTranscript),
@@ -87,6 +88,7 @@ export class IntelligenceService {
 
     await onProgress?.(INTELLIGENCE_STAGES.DECISIONS, 85);
     const decisionsResult = await this.generateValidated(
+      meetingId,
       'decisions',
       DECISIONS_SYSTEM_PROMPT,
       buildDecisionsPrompt(timestampedTranscript),
@@ -95,6 +97,7 @@ export class IntelligenceService {
 
     await onProgress?.(INTELLIGENCE_STAGES.ACTION_ITEMS, 92);
     const actionItemsResult = await this.generateValidated(
+      meetingId,
       'action-items',
       ACTION_ITEMS_SYSTEM_PROMPT,
       buildActionItemsPrompt(timestampedTranscript),
@@ -251,12 +254,17 @@ export class IntelligenceService {
   }
 
   private async generateValidated<T>(
+    meetingId: string,
     operation: string,
     systemPrompt: string,
     userPrompt: string,
     schema: ZodType<T>,
   ): Promise<T> {
-    const response = await this.deepseek.completeJson(operation, systemPrompt, userPrompt);
+    const response = await this.deepseek.completeJson(operation, systemPrompt, userPrompt, {
+      meetingId,
+      promptVersion: MEETING_INTELLIGENCE_PROMPT_VERSION,
+      repairAttempt: 0,
+    });
     const firstAttempt = this.parseResponse(response, schema);
     if (firstAttempt.success) return firstAttempt.data;
 
@@ -271,6 +279,11 @@ ${response.slice(0, 16_000)}`;
       operation,
       `${systemPrompt}\nThis is one controlled correction attempt. Preserve the transcript-grounded rules exactly.`,
       repairPrompt,
+      {
+        meetingId,
+        promptVersion: MEETING_INTELLIGENCE_PROMPT_VERSION,
+        repairAttempt: 1,
+      },
     );
     const repairedAttempt = this.parseResponse(repairedResponse, schema);
     if (repairedAttempt.success) return repairedAttempt.data;

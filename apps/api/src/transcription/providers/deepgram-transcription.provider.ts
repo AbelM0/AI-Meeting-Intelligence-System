@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DeepgramClient } from '@deepgram/sdk';
+import { getCurrentRunTree, traceable } from 'langsmith/traceable';
 import {
   DEFAULT_DEEPGRAM_DIARIZATION_MODEL,
   DEFAULT_DEEPGRAM_TRANSCRIPTION_MODEL,
@@ -28,6 +29,9 @@ export type TranscriptionFailureCategory =
   | 'malformed_response';
 
 export class TranscriptionProviderError extends Error {
+  providerStatus: number | null = null;
+  providerRequestId: string | null = null;
+
   constructor(
     message: string,
     readonly category: TranscriptionFailureCategory,
@@ -38,12 +42,20 @@ export class TranscriptionProviderError extends Error {
   }
 }
 
+type DeepgramTraceResult = {
+  result: TranscriptionResult;
+  providerRequestId: string | null;
+};
+
 @Injectable()
 export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   private readonly logger = new Logger(DeepgramTranscriptionProvider.name);
   private readonly client: DeepgramClient;
   private readonly model: string;
   private readonly diarizationModel: string;
+  private readonly tracedTranscription: (
+    input: TranscriptionInput,
+  ) => Promise<DeepgramTraceResult>;
 
   constructor(private readonly config: ConfigService) {
     const apiKey = config.get<string>('DEEPGRAM_API_KEY')?.trim();
@@ -58,34 +70,78 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       config.get<string>('DEEPGRAM_DIARIZATION_MODEL')?.trim() ||
       DEFAULT_DEEPGRAM_DIARIZATION_MODEL;
     this.client = new DeepgramClient({ apiKey });
+    this.tracedTranscription = traceable(
+      async (input: TranscriptionInput): Promise<DeepgramTraceResult> => {
+        this.addTraceContext(input);
+
+        try {
+          const response = await this.client.listen.v1.media.transcribeUrl(
+            {
+              url: input.audioUrl,
+              model: this.model,
+              smart_format: true,
+              utterances: true,
+              diarize_model: this.diarizationModel,
+              punctuate: true,
+              ...(input.language ? { language: input.language } : { detect_language: true }),
+            },
+            {
+              timeoutInSeconds: Math.ceil(
+                this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000) / 1_000,
+              ),
+              maxRetries: 0,
+            },
+          );
+          const normalized = normalizeDeepgramResponse(response);
+
+          return {
+            result: normalized.language
+              ? normalized
+              : { ...normalized, language: input.language },
+            providerRequestId: getRequestId(response),
+          };
+        } catch (error) {
+          const mappedError = this.mapError(error);
+          mappedError.providerStatus = this.statusOf(error);
+          mappedError.providerRequestId = getRequestId(error);
+          this.addTraceFailure(mappedError);
+          throw mappedError;
+        }
+      },
+      {
+        name: 'deepgram.transcribe',
+        run_type: 'tool',
+        tags: ['ai-provider', 'deepgram', 'transcription'],
+        metadata: {
+          provider: 'deepgram',
+          model: this.model,
+          diarization_model: this.diarizationModel,
+        },
+        processInputs: (input) => ({
+          meeting_id: input.meetingId ?? null,
+          language: input.language,
+          audio_source: 'signed_url',
+        }),
+        processOutputs: (output) => ({
+          provider_request_id: output.providerRequestId,
+          language: output.result.language,
+          duration_seconds: output.result.duration,
+          segment_count: output.result.segments.length,
+          speaker_count: output.result.speakers.length,
+          transcript_characters: output.result.text.length,
+        }),
+      },
+    );
   }
 
   async transcribe(input: TranscriptionInput): Promise<TranscriptionResult> {
     try {
-      const response = await this.client.listen.v1.media.transcribeUrl(
-        {
-          url: input.audioUrl,
-          model: this.model,
-          smart_format: true,
-          utterances: true,
-          diarize_model: this.diarizationModel,
-          punctuate: true,
-          ...(input.language ? { language: input.language } : { detect_language: true }),
-        },
-        {
-          timeoutInSeconds: Math.ceil(
-            this.config.get<number>('DEEPGRAM_TIMEOUT_MS', 600_000) / 1_000,
-          ),
-          maxRetries: 0,
-        },
-      );
-      const normalized = normalizeDeepgramResponse(response);
-      const result = normalized.language ? normalized : { ...normalized, language: input.language };
+      const response = await this.tracedTranscription(input);
 
       this.logger.log(
-        `Deepgram transcription completed meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} requestId=${getRequestId(response) ?? 'unknown'} stage=transcribing segments=${result.segments.length} speakers=${result.speakers.length}`,
+        `Deepgram transcription completed meetingId=${input.meetingId ?? 'unknown'} provider=deepgram model=${this.model} requestId=${response.providerRequestId ?? 'unknown'} stage=transcribing segments=${response.result.segments.length} speakers=${response.result.speakers.length}`,
       );
-      return result;
+      return response.result;
     } catch (error) {
       const mappedError = this.mapError(error);
       this.logger.warn(
@@ -93,6 +149,31 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
       );
       throw mappedError;
     }
+  }
+
+  private addTraceContext(input: TranscriptionInput): void {
+    const runTree = getCurrentRunTree();
+    if (!runTree) return;
+
+    runTree.metadata = {
+      ...runTree.metadata,
+      meeting_id: input.meetingId ?? null,
+      language: input.language,
+    };
+  }
+
+  private addTraceFailure(error: TranscriptionProviderError): void {
+    const runTree = getCurrentRunTree();
+    if (!runTree) return;
+
+    runTree.metadata = {
+      ...runTree.metadata,
+      error_category: error.category,
+      retryable: error.retryable,
+      provider_status: error.providerStatus,
+      provider_request_id: error.providerRequestId,
+    };
+    runTree.tags = [...(runTree.tags ?? []), `error:${error.category}`];
   }
 
   private mapError(error: unknown): TranscriptionProviderError {
@@ -175,7 +256,7 @@ export class DeepgramTranscriptionProvider implements TranscriptionProvider {
   private statusOf(error: unknown): number | null {
     if (!isRecord(error)) return null;
 
-    for (const key of ['status', 'statusCode', 'status_code']) {
+    for (const key of ['providerStatus', 'status', 'statusCode', 'status_code']) {
       const status = Number(error[key]);
       if (Number.isFinite(status)) return status;
     }
@@ -364,10 +445,13 @@ function malformedResponse(): TranscriptionProviderError {
 
 function getRequestId(value: unknown): string | null {
   if (!isRecord(value)) return null;
+  if (typeof value.providerRequestId === 'string') return value.providerRequestId;
   const metadata = isRecord(value.metadata)
     ? value.metadata
     : isRecord(value.data) && isRecord(value.data.metadata)
       ? value.data.metadata
+      : isRecord(value.response) && isRecord(value.response.metadata)
+        ? value.response.metadata
       : null;
   return metadata && typeof metadata.request_id === 'string' ? metadata.request_id : null;
 }

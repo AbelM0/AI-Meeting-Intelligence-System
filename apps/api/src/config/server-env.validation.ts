@@ -23,6 +23,15 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
   if (!config.REDIS_URL && (!config.REDIS_HOST || !config.REDIS_PORT)) {
     missing.push('REDIS_URL or REDIS_HOST/REDIS_PORT');
   }
+  const langSmithTracingValue = config.LANGSMITH_TRACING;
+  const langSmithTracing =
+    langSmithTracingValue === true ||
+    (typeof langSmithTracingValue === 'string' && langSmithTracingValue.toLowerCase() === 'true');
+  if (langSmithTracing) {
+    for (const key of ['LANGSMITH_API_KEY', 'LANGSMITH_PROJECT'] as const) {
+      if (typeof config[key] !== 'string' || config[key].trim() === '') missing.push(key);
+    }
+  }
   if (missing.length > 0)
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
 
@@ -45,5 +54,6 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
     config[key] = value;
   }
   config.SUPABASE_STORAGE_BUCKET = bucket;
+  config.LANGSMITH_TRACING = langSmithTracing;
   return config;
 }
