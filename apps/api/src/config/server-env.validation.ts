@@ -20,7 +20,8 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
   const bucketValue = config.SUPABASE_STORAGE_BUCKET || config.SUPABASE_AUDIO_BUCKET;
   const bucket = typeof bucketValue === 'string' ? bucketValue.trim() : '';
   if (!bucket) missing.push('SUPABASE_STORAGE_BUCKET');
-  if (!config.REDIS_URL && (!config.REDIS_HOST || !config.REDIS_PORT)) {
+  const redisUrl = typeof config.REDIS_URL === 'string' ? config.REDIS_URL.trim() : '';
+  if (!redisUrl && (!config.REDIS_HOST || !config.REDIS_PORT)) {
     missing.push('REDIS_URL or REDIS_HOST/REDIS_PORT');
   }
   const langSmithTracingValue = config.LANGSMITH_TRACING;
@@ -34,6 +35,24 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
   }
   if (missing.length > 0)
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+
+  if (redisUrl) {
+    let parsedRedisUrl: URL;
+    try {
+      parsedRedisUrl = new URL(redisUrl);
+    } catch {
+      throw new Error('REDIS_URL must be a valid redis:// or rediss:// URL.');
+    }
+    if (!['redis:', 'rediss:'].includes(parsedRedisUrl.protocol) || !parsedRedisUrl.hostname) {
+      throw new Error('REDIS_URL must be a valid redis:// or rediss:// URL.');
+    }
+    config.REDIS_URL = redisUrl;
+  }
+
+  const serverPort = Number(config.PORT ?? config.API_PORT ?? 3001);
+  if (!Number.isInteger(serverPort) || serverPort < 1 || serverPort > 65_535) {
+    throw new Error('PORT or API_PORT must be an integer between 1 and 65535.');
+  }
 
   const positiveIntegers = {
     MEETING_WORKER_CONCURRENCY: 2,
@@ -54,6 +73,7 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
     config[key] = value;
   }
   config.SUPABASE_STORAGE_BUCKET = bucket;
+  config.API_PORT = serverPort;
   config.LANGSMITH_TRACING = langSmithTracing;
   return config;
 }

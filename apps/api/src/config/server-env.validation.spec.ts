@@ -41,3 +41,30 @@ void test('environment validation rejects invalid concurrency', () => {
     /MEETING_WORKER_CONCURRENCY/,
   );
 });
+
+void test('environment validation accepts Render Key Value URLs and trims whitespace', () => {
+  const result = validateServerEnv({
+    ...validEnvironment(),
+    REDIS_URL: '  redis://render-key-value:6379  ',
+  });
+  assert.equal(result.REDIS_URL, 'redis://render-key-value:6379');
+});
+
+void test('environment validation rejects a malformed Redis URL with a useful error', () => {
+  assert.throws(
+    () => validateServerEnv({ ...validEnvironment(), REDIS_URL: 'REDIS_URL=redis://host:6379' }),
+    /REDIS_URL must be a valid redis:\/\/ or rediss:\/\/ URL/,
+  );
+});
+
+void test('environment validation prefers Render PORT over the local API port', () => {
+  const result = validateServerEnv({ ...validEnvironment(), PORT: '10000', API_PORT: '3001' });
+  assert.equal(result.API_PORT, 10_000);
+});
+
+void test('environment validation rejects an invalid server port', () => {
+  assert.throws(
+    () => validateServerEnv({ ...validEnvironment(), PORT: 'not-a-port' }),
+    /PORT or API_PORT/,
+  );
+});
