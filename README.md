@@ -1,61 +1,317 @@
 # AI Meeting Intelligence System
 
-Production-oriented monorepo for an AI meeting intelligence platform. Meetings can be created and managed, each meeting can securely attach one recording in private Supabase Storage, and a BullMQ worker runs the durable meeting-processing lifecycle asynchronously.
+AI Meeting Intelligence System turns private meeting recordings into searchable, speaker-labelled transcripts and structured follow-up. Users can upload audio, follow durable background processing, review evidence-backed summaries and decisions, manage action items, rename speakers, and share approved results without exposing the source recording.
 
-## Workspace
+The application is built for teams that need meeting output to remain useful after the call: traceable to the transcript, recoverable when processing fails, and secure by default.
 
-- `apps/web` — Next.js 16 App Router frontend
-- `apps/api` — NestJS REST API
-- `packages/database` — Prisma client package for PostgreSQL
-- `packages/schemas` — shared Zod schemas
-- `packages/types` — shared TypeScript types
+## What the project does
 
-## Requirements
+- Creates a private, user-owned library of meetings.
+- Uploads MP3, WAV, and M4A recordings directly to private Supabase Storage with resumable TUS uploads.
+- Transcribes recordings with Deepgram Whisper, including timestamps, language detection, and speaker diarization.
+- Generates structured summaries, key topics, outcomes, and unresolved issues with DeepSeek.
+- Extracts decisions and action items with supporting evidence and source timestamps.
+- Lets users search a transcript, jump to exact moments, and replace generated speaker labels with real names.
+- Supports editing an action item's task, owner, due date, priority, and workflow status.
+- Runs processing asynchronously with BullMQ, durable PostgreSQL state, progress reporting, retries, and safe failure recovery.
+- Creates expiring or permanent public result links that can be revoked without exposing meeting audio.
+- Isolates every authenticated meeting operation by Clerk user ownership.
+- Ships as a pnpm/Turborepo monorepo with Docker images for the web app and API.
+
+## Product workflow
+
+```mermaid
+flowchart LR
+    A["Create meeting"] --> B["Upload private audio"]
+    B --> C["Queue processing"]
+    C --> D["Transcribe + diarize"]
+    D --> E["Analyze transcript"]
+    E --> F["Review intelligence"]
+    F --> G["Manage follow-up"]
+    F --> H["Share approved results"]
+```
+
+Processing moves through visible, persisted states:
+
+`UPLOADED → QUEUED → PREPROCESSING → TRANSCRIBING → ANALYZING → COMPLETED`
+
+Terminal failures move the meeting to `FAILED`. A retry reuses an existing valid transcript when possible, avoiding unnecessary retranscription cost; a full reprocess can deliberately regenerate the transcript.
+
+## Core areas
+
+### Meeting workspace
+
+The meeting library provides cursor-based browsing, processing status, high-level result counts, and meeting management. Each meeting belongs to one Clerk user and supports one private recording at a time.
+
+### Transcript workspace
+
+Deepgram returns timestamped, speaker-labelled segments that are stored as a durable transcript. Users can search the conversation, navigate to source moments, and rename detected speakers without changing the underlying transcript evidence.
+
+### Meeting intelligence
+
+DeepSeek analyzes a deterministic transcript representation in separate summary, decision, and action-item stages. Every provider response is parsed as JSON and validated with shared Zod schemas before it is persisted. Decisions and action items retain evidence text and, when available, a source segment and timestamp.
+
+### Action tracking
+
+Generated action items remain operational after processing. A user can correct the task, owner, due date, and priority, then move work through `OPEN`, `IN_PROGRESS`, and `COMPLETED` states.
+
+### Secure sharing
+
+Meeting owners can create links that expire after 24 hours, 7 days, or 30 days, or never expire. Public pages contain approved meeting results and transcript content, but never audio metadata or playback URLs. Creating a new link revokes the previous active link, and links can be revoked at any time.
+
+## Architecture
+
+```mermaid
+flowchart TB
+    UI["Next.js 16 web app"]
+    API["NestJS REST API"]
+    AUTH["Clerk authentication"]
+    DB["Supabase PostgreSQL + Prisma"]
+    STORAGE["Private Supabase Storage"]
+    QUEUE["Redis + BullMQ"]
+    WORKER["Meeting processing worker"]
+    STT["Deepgram transcription"]
+    LLM["DeepSeek intelligence"]
+
+    UI --> API
+    UI --> STORAGE
+    API --> AUTH
+    API --> DB
+    API --> STORAGE
+    API --> QUEUE
+    QUEUE --> WORKER
+    WORKER --> DB
+    WORKER --> STORAGE
+    WORKER --> STT
+    WORKER --> LLM
+```
+
+The browser receives a short-lived, user-scoped upload authorization and sends the recording directly to Supabase. Once the upload is confirmed, the API transactionally moves the meeting and its processing record to `QUEUED`, then submits the small `{ meetingId }` payload to BullMQ. The worker always reloads authoritative meeting data from PostgreSQL before doing work.
+
+PostgreSQL is the browser-visible source of truth across refreshes and restarts. Redis coordinates background execution and retry recovery; it is not the canonical store for meeting state or generated intelligence.
+
+## Technology stack
+
+| Area                  | Technology                                                           |
+| --------------------- | -------------------------------------------------------------------- |
+| Web application       | Next.js 16 App Router, React 19, TypeScript                          |
+| UI and data           | Tailwind CSS, Radix UI, TanStack Query, React Hook Form, Motion      |
+| API                   | NestJS 10, REST, Zod and class-validator                             |
+| Authentication        | Clerk sessions, bearer-token verification, signed webhooks           |
+| Database              | Supabase PostgreSQL, Prisma 6                                        |
+| File storage          | Private Supabase Storage, signed URLs, resumable TUS uploads         |
+| Background processing | Redis 8, BullMQ 5                                                    |
+| Speech to text        | Deepgram Whisper with diarization                                    |
+| AI analysis           | DeepSeek through an OpenAI-compatible client                         |
+| Observability         | Structured request logs, correlation IDs, optional LangSmith tracing |
+| Tooling               | pnpm 9, Turborepo, ESLint, Prettier, Docker Compose                  |
+
+## Repository structure
+
+```text
+apps/
+├── web/                         # Next.js frontend and public share pages
+│   └── src/
+│       ├── app/                 # Landing, auth, meeting, and share routes
+│       └── features/meetings/   # Meeting UI, API hooks, uploads, and utilities
+└── api/                         # NestJS API and in-process BullMQ worker
+    └── src/
+        ├── auth/                # Clerk authentication and user resolution
+        ├── intelligence/        # DeepSeek prompts, validation, and persistence
+        ├── jobs/                # Queue configuration and meeting processor
+        ├── meetings/            # Meeting, upload, transcript, and retry endpoints
+        ├── sharing/             # Expiring public result links
+        ├── storage/             # Private Supabase Storage access
+        ├── transcription/       # Deepgram provider and normalization
+        └── webhooks/            # Clerk user lifecycle synchronization
+
+packages/
+├── database/                    # Prisma schema, migrations, and generated client
+├── schemas/                     # Shared Zod request and AI-output schemas
+└── types/                       # Shared API contracts
+```
+
+## Prerequisites
 
 - Node.js 20.9 or newer
 - pnpm 9 or newer
 - Docker with Docker Compose
+- A Supabase project with PostgreSQL and a private Storage bucket
+- A Clerk application
+- A Deepgram API key
+- A DeepSeek API key
 
-## Installation
+## Local setup
 
-1. Clone the repository and enter its directory.
-2. Install dependencies:
-
-   ```bash
-   pnpm install
-   ```
-
-3. Copy `.env.example` to `.env`. Also copy `packages/database/.env.example` to `packages/database/.env` and `apps/web/.env.example` to `apps/web/.env.local`. Set the database, Clerk, and Supabase values before starting the application.
-4. Start Redis for the local Node.js workflow:
-
-   ```bash
-   docker compose up -d redis
-   ```
-
-5. Generate the Prisma client:
-
-   ```bash
-   pnpm db:generate
-   ```
-
-6. Start the frontend and API:
-
-   ```bash
-   pnpm dev
-   ```
-
-The normal local workflow is:
+### 1. Install dependencies
 
 ```bash
 pnpm install
-docker compose up -d
+```
+
+### 2. Create environment files
+
+Copy the checked-in examples:
+
+```bash
+cp .env.example .env
+cp packages/database/.env.example packages/database/.env
+cp apps/web/.env.example apps/web/.env.local
+```
+
+On PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+Copy-Item packages/database/.env.example packages/database/.env
+Copy-Item apps/web/.env.example apps/web/.env.local
+```
+
+Use the root `.env` for backend services, `packages/database/.env` for Prisma CLI access, and `apps/web/.env.local` for the browser-safe Next.js configuration. Never place a secret or service-role credential in a `NEXT_PUBLIC_*` variable.
+
+### 3. Prepare Supabase
+
+1. Set `DATABASE_URL` in `packages/database/.env` and the root `.env`.
+2. Apply the committed Prisma migrations:
+
+   ```bash
+   pnpm db:deploy
+   ```
+
+3. Create a private Storage bucket named `meeting-audio`, or use the name in `SUPABASE_STORAGE_BUCKET`.
+4. Add the Supabase project URL and service-role key to the backend environment.
+
+The API verifies that the configured audio bucket is private before it authorizes an upload.
+
+### 4. Configure Clerk
+
+1. Create a Clerk application.
+2. Put the publishable key in the web environment and the backend publishable key in the root environment.
+3. Put `CLERK_SECRET_KEY` only in the backend/root environment.
+4. Set `CLERK_AUTHORIZED_PARTIES` and `FRONTEND_URL` to the legitimate frontend origin.
+5. Create a webhook at `https://your-api.example/api/v1/webhooks/clerk` for `user.created`, `user.updated`, and `user.deleted`.
+6. Store its signing secret as `CLERK_WEBHOOK_SECRET`.
+
+The API independently verifies Clerk bearer tokens. A deletion webhook anonymizes the local profile while preserving meeting records for retention; it does not cascade-delete user meetings.
+
+### 5. Configure AI providers
+
+Add `DEEPGRAM_API_KEY` and `DEEPSEEK_API_KEY` to the root `.env`. The default provider configuration is:
+
+```dotenv
+DEEPGRAM_TRANSCRIPTION_MODEL=whisper
+DEEPGRAM_DIARIZATION_MODEL=latest
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
+### 6. Start the application
+
+Start Redis, generate Prisma Client, and run the web and API workspaces:
+
+```bash
+docker compose up -d redis
 pnpm db:generate
 pnpm dev
 ```
 
-To build and run the complete application through Docker, first make sure the
-root `.env` contains the database, Supabase, and Deepgram values required by the
-API. The public frontend values are supplied while the Next.js image is built.
+Open [http://localhost:3000](http://localhost:3000). The API is available at [http://localhost:3001/api/v1](http://localhost:3001/api/v1).
+
+## Environment reference
+
+| Variable                            | Required     | Purpose                                               |
+| ----------------------------------- | ------------ | ----------------------------------------------------- |
+| `DATABASE_URL`                      | Yes          | PostgreSQL connection used by Prisma and the API      |
+| `FRONTEND_URL`                      | Yes          | Comma-separated browser origins allowed by CORS       |
+| `CLERK_AUTHORIZED_PARTIES`          | Yes          | Allowed Clerk token originating parties               |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes          | Browser-safe Clerk key                                |
+| `CLERK_PUBLISHABLE_KEY`             | Yes          | Backend Clerk publishable key                         |
+| `CLERK_SECRET_KEY`                  | Yes          | Server-only Clerk credential                          |
+| `CLERK_JWT_KEY`                     | No           | PEM public key for networkless token verification     |
+| `CLERK_WEBHOOK_SECRET`              | Recommended  | Verifies Clerk lifecycle webhooks                     |
+| `NEXT_PUBLIC_API_URL`               | Yes          | Browser-facing REST API base URL                      |
+| `SUPABASE_URL`                      | Yes          | Backend Supabase project URL                          |
+| `SUPABASE_SERVICE_ROLE_KEY`         | Yes          | Server-only Storage administration key                |
+| `SUPABASE_STORAGE_BUCKET`           | No           | Private recording bucket; defaults to `meeting-audio` |
+| `NEXT_PUBLIC_SUPABASE_URL`          | Yes          | Browser-safe Supabase project URL                     |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Yes          | Browser-safe Supabase anonymous key                   |
+| `DEEPGRAM_API_KEY`                  | Yes          | Server-only speech-to-text credential                 |
+| `DEEPSEEK_API_KEY`                  | Yes          | Server-only analysis credential                       |
+| `REDIS_URL`                         | No           | Redis URL; overrides `REDIS_HOST` and `REDIS_PORT`    |
+| `LANGSMITH_TRACING`                 | No           | Enables server-side AI call tracing                   |
+| `LANGSMITH_API_KEY`                 | When tracing | LangSmith credential                                  |
+| `LANGSMITH_PROJECT`                 | When tracing | LangSmith destination project                         |
+| `TRUST_PROXY`                       | Production   | Exact trusted reverse-proxy hop count                 |
+| `MEETING_WORKER_CONCURRENCY`        | No           | Concurrent meeting jobs; defaults to `2`              |
+| `MAX_ACTIVE_MEETINGS_PER_USER`      | No           | Per-user processing admission limit; defaults to `3`  |
+| `MEETING_JOB_ATTEMPTS`              | No           | Attempts including the first run; defaults to `3`     |
+| `MEETING_JOB_BACKOFF_MS`            | No           | Exponential retry base delay; defaults to `2000`      |
+| `MAX_AUDIO_FILE_SIZE_MB`            | No           | Recording size limit; defaults to `50`                |
+
+Timeouts, rate limits, ports, model overrides, cleanup age, and FFmpeg paths are documented inline in [`.env.example`](.env.example).
+
+## Application routes
+
+| Route            | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `/`              | Public product landing page                                       |
+| `/sign-in`       | Clerk sign-in                                                     |
+| `/sign-up`       | Clerk registration                                                |
+| `/meetings`      | Authenticated meeting library                                     |
+| `/meetings/[id]` | Transcript, intelligence, audio, sharing, and follow-up workspace |
+| `/share/[token]` | Public, revocable meeting-results page                            |
+
+## API overview
+
+All API paths use the `/api/v1` prefix.
+
+| Endpoint                                         | Purpose                                            |
+| ------------------------------------------------ | -------------------------------------------------- |
+| `GET /health`                                    | Liveness check                                     |
+| `GET /health/ready`                              | PostgreSQL and Redis readiness check               |
+| `POST /meetings`                                 | Create a meeting                                   |
+| `GET /meetings`                                  | List the current user's meetings                   |
+| `POST /meetings/:id/audio/upload-url`            | Authorize a private resumable upload               |
+| `POST /meetings/:id/audio/confirm`               | Confirm the stored recording                       |
+| `POST /meetings/:id/process`                     | Queue processing and return `202`                  |
+| `GET /meetings/:id/status`                       | Read durable processing state                      |
+| `GET /meetings/:id/transcript`                   | Read the speaker-labelled transcript               |
+| `PATCH /meetings/:meetingId/speakers/:speakerId` | Rename a detected speaker                          |
+| `GET /meetings/:id/intelligence`                 | Read summary, decisions, and action items          |
+| `PATCH /action-items/:id`                        | Edit or advance an action item                     |
+| `POST /meetings/:meetingId/shares`               | Create a public result link                        |
+| `DELETE /meetings/:meetingId/shares/:shareId`    | Revoke a result link                               |
+| `GET /shares/:token`                             | Read shared meeting results without authentication |
+
+## Commands
+
+| Command             | Description                                           |
+| ------------------- | ----------------------------------------------------- |
+| `pnpm dev`          | Run the web app and API through Turborepo             |
+| `pnpm build`        | Build packages and applications in dependency order   |
+| `pnpm lint`         | Lint every workspace                                  |
+| `pnpm typecheck`    | Type-check every workspace                            |
+| `pnpm format`       | Format the repository with Prettier                   |
+| `pnpm format:check` | Check formatting without changing files               |
+| `pnpm db:generate`  | Generate Prisma Client                                |
+| `pnpm db:migrate`   | Create and apply a development migration              |
+| `pnpm db:deploy`    | Apply committed migrations in deployment environments |
+| `pnpm db:studio`    | Open Prisma Studio                                    |
+
+Targeted regression suites are available in the application workspaces:
+
+```bash
+pnpm --filter @meeting-intelligence/api test:intelligence
+pnpm --filter @meeting-intelligence/api test:meetings
+pnpm --filter @meeting-intelligence/api test:auth
+pnpm --filter @meeting-intelligence/api test:transcription
+pnpm --filter @meeting-intelligence/api test:hardening
+pnpm --filter @meeting-intelligence/web test:meeting-utils
+```
+
+## Docker deployment
+
+Build and start the complete local production stack after configuring the root `.env` and applying migrations:
 
 ```bash
 pnpm db:deploy
@@ -63,169 +319,15 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Run `pnpm db:deploy` whenever a new Prisma migration is added, before starting
-or restarting the production API. It applies only unapplied migrations and does
-not remove existing transcript data. The command needs `DATABASE_URL` in the
-shell environment or in `packages/database/.env`.
+This starts:
 
-This creates and runs three containers:
+- `web` at [http://localhost:3000](http://localhost:3000)
+- `api` at [http://localhost:3001](http://localhost:3001)
+- `redis` on the internal Compose network, with data persisted in `redis-data`
 
-- `web` — Next.js production frontend at <http://localhost:3000>
-- `api` — NestJS production API at <http://localhost:3001>
-- `redis` — BullMQ Redis queue at `localhost:6379`
+The images are tagged `meeting-intelligence-web:local` and `meeting-intelligence-api:local` by default. Stop the stack with `docker compose down`.
 
-The images are tagged `meeting-intelligence-web:local` and
-`meeting-intelligence-api:local`. Stop the stack with:
-
-```bash
-docker compose down
-```
-
-If the frontend or API host ports are changed, update `WEB_PORT`, `API_PORT`,
-`FRONTEND_URL`, and `NEXT_PUBLIC_API_URL` in the root `.env` before rebuilding
-the web image.
-
-## Local URLs
-
-- Frontend: <http://localhost:3000>
-- Backend: <http://localhost:3001>
-- Health check: <http://localhost:3001/api/v1/health>
-- Readiness check: <http://localhost:3001/api/v1/health/ready>
-
-## Environment configuration
-
-The API loads `apps/api/.env` first and then the root `.env`. For the simplest setup, keep backend variables in the root `.env`. Prisma CLI resolves its environment relative to `packages/database`, so put `DATABASE_URL` in `packages/database/.env` (or export it in your shell). Next.js loads browser configuration from `apps/web/.env.local`; browser-readable values must use the `NEXT_PUBLIC_` prefix.
-
-Create a private Supabase Storage bucket named `meeting-audio`. The API checks that this bucket is private before authorizing an upload. The service-role key belongs only in the backend/root environment; never add it to a `NEXT_PUBLIC_` variable.
-
-### Clerk setup
-
-1. Create a Clerk application and configure the desired MVP sign-in methods.
-2. Copy its publishable key to `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` in `apps/web/.env.local` and to backend-only `CLERK_PUBLISHABLE_KEY` in the root `.env`.
-3. Copy the secret key to backend-only `CLERK_SECRET_KEY`.
-4. Optionally copy the PEM JWT public key to `CLERK_JWT_KEY` for networkless verification.
-5. Set `CLERK_AUTHORIZED_PARTIES` to the comma-separated legitimate frontend origins (normally `http://localhost:3000` locally). Keep `FRONTEND_URL` aligned for CORS.
-6. Add a Clerk webhook endpoint for `user.created`, `user.updated`, and `user.deleted` at `https://your-api.example/api/v1/webhooks/clerk`, then copy its signing secret to backend-only `CLERK_WEBHOOK_SECRET`. Use any secure tunnel during local development; do not add its transient URL to source control.
-
-Clerk is the authentication and user-management provider. Supabase remains limited to PostgreSQL and private audio Storage. The API verifies every Clerk bearer token independently; the browser never receives the Clerk secret, JWT key, or webhook secret.
-
-The ownership migration preserves pre-Clerk rows by assigning them to `legacy_unassigned`. After your first Clerk login has synchronized its local `User` row, claim legacy development meetings with this SQL (replace the value with your actual Clerk `user_...` ID):
-
-```sql
-UPDATE "Meeting" SET "userId" = 'user_yourClerkId' WHERE "userId" = 'legacy_unassigned';
-```
-
-Verify the reassignment before optionally removing the holding user:
-
-```sql
-SELECT "userId", COUNT(*) FROM "Meeting" GROUP BY "userId";
-DELETE FROM "User" WHERE "id" = 'legacy_unassigned' AND NOT EXISTS (
-  SELECT 1 FROM "Meeting" WHERE "userId" = 'legacy_unassigned'
-);
-```
-
-Deletion webhooks deliberately anonymize the local profile while preserving owned meetings for retention. They never cascade-delete meeting data.
-
-| Variable                            | Purpose                                                      |
-| ----------------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`                      | PostgreSQL/Supabase connection string used by Prisma         |
-| `FRONTEND_URL`                      | Allowed browser origin for API CORS                          |
-| `TRUST_PROXY`                       | Trusted reverse-proxy hop count for client IP parsing        |
-| `CLERK_AUTHORIZED_PARTIES`          | Allowed Clerk token originating frontend origins             |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Browser-safe Clerk publishable key                           |
-| `CLERK_PUBLISHABLE_KEY`             | Backend Clerk publishable key                                |
-| `CLERK_SECRET_KEY`                  | Server-only Clerk API and verification secret                |
-| `CLERK_JWT_KEY`                     | Optional server-only PEM key for offline verification        |
-| `CLERK_WEBHOOK_SECRET`              | Server-only Clerk webhook signing secret                     |
-| `NEXT_PUBLIC_API_URL`               | Browser-facing base URL for the REST API                     |
-| `API_PORT`, `WEB_PORT`              | Host ports published by the Docker Compose services          |
-| `REDIS_HOST`, `REDIS_PORT`          | Local or hosted Redis connection                             |
-| `REDIS_URL`                         | Optional Redis URL overriding host and port                  |
-| `SUPABASE_URL`                      | Supabase project URL                                         |
-| `SUPABASE_SERVICE_ROLE_KEY`         | Server-only Supabase administrative key                      |
-| `SUPABASE_AUDIO_BUCKET`             | Private recording bucket (default `meeting-audio`)           |
-| `SUPABASE_STORAGE_BUCKET`           | Preferred production bucket name override                    |
-| `SUPABASE_TIMEOUT_MS`               | Supabase request timeout (default `15000`)                   |
-| `ABANDONED_UPLOAD_MAX_AGE_HOURS`    | Age before unconfirmed uploads are cleaned (default `24`)    |
-| `MAX_AUDIO_FILE_SIZE_MB`            | Backend recording size limit (default `50`)                  |
-| `NEXT_PUBLIC_SUPABASE_URL`          | Browser-safe Supabase project URL                            |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`     | Browser-safe Supabase anonymous key                          |
-| `DEEPGRAM_API_KEY`                  | Server-only Deepgram speech-to-text credential               |
-| `DEEPGRAM_TRANSCRIPTION_MODEL`      | Deepgram transcription model (default `whisper`)             |
-| `DEEPGRAM_DIARIZATION_MODEL`        | Deepgram diarization model (default `latest`)                |
-| `DEEPGRAM_TIMEOUT_MS`               | Deepgram request timeout (default `600000`)                  |
-| `DEEPGRAM_NETWORK_RETRY_DELAY_MS`   | Delay before one transient network retry (default `1000`)    |
-| `FFMPEG_PATH`                       | FFmpeg executable path (default `ffmpeg`)                    |
-| `FFPROBE_PATH`                      | FFprobe executable path (default `ffprobe`)                  |
-| `DEEPSEEK_API_KEY`                  | Server-only DeepSeek credential                              |
-| `DEEPSEEK_MODEL`                    | Analysis model (default `deepseek-v4-flash`)                 |
-| `DEEPSEEK_BASE_URL`                 | DeepSeek-compatible API base URL                             |
-| `DEEPSEEK_MAX_TRANSCRIPT_TOKENS`    | Single-pass transcript guard (default `100000`)              |
-| `DEEPSEEK_TIMEOUT_MS`               | DeepSeek request timeout (default `120000`)                  |
-| `MEETING_WORKER_CONCURRENCY`        | BullMQ worker concurrency (default `2`)                      |
-| `MAX_ACTIVE_MEETINGS_PER_USER`      | Active processing admission limit (default `3`)              |
-| `MEETING_JOB_ATTEMPTS`              | BullMQ attempts including the first run (default `3`)        |
-| `MEETING_JOB_BACKOFF_MS`            | Exponential retry base delay (default `2000`)                |
-| `API_RATE_LIMIT`                    | General requests allowed per throttle window (default `120`) |
-| `API_RATE_TTL_MS`                   | General throttle window (default `60000`)                    |
-
-Never commit real credentials. All `.env*` files except `.env.example` are ignored.
-
-## Commands
-
-| Command            | Description                                           |
-| ------------------ | ----------------------------------------------------- |
-| `pnpm dev`         | Run development applications through Turbo            |
-| `pnpm build`       | Build packages and applications in dependency order   |
-| `pnpm lint`        | Lint every workspace                                  |
-| `pnpm typecheck`   | Type-check every workspace                            |
-| `pnpm format`      | Format the repository with Prettier                   |
-| `pnpm db:generate` | Generate the Prisma client                            |
-| `pnpm db:migrate`  | Create/apply a development migration                  |
-| `pnpm db:deploy`   | Apply committed migrations in deployment environments |
-| `pnpm db:studio`   | Open Prisma Studio                                    |
-
-Redis data is persisted in the Docker volume `redis-data`.
-
-## Meeting processing foundation
-
-The API exposes the asynchronous processing flow at:
-
-- `POST /api/v1/meetings/:id/process` queues an uploaded meeting and returns `202`.
-- `GET /api/v1/meetings/:id/status` returns durable meeting and processing state.
-- `POST /api/v1/meetings/:id/retry` requeues a failed meeting and returns `202`.
-- `POST /api/v1/meetings/:id/reprocess-transcription` deliberately retranscribes a meeting with Deepgram and returns `202`.
-
-`MeetingsService` atomically changes PostgreSQL state to `QUEUED` and resets the meeting's single `ProcessingJob` before `MeetingQueueService` adds the small `{ meetingId }` payload to the `meeting-processing` queue. Queue jobs use the stable ID `meeting-<uuid>` because BullMQ custom IDs cannot contain colons. Completed or failed Redis entries are removed before an allowed manual retry; active database and Redis states reject duplicate work.
-
-The worker fetches the authoritative meeting and audio metadata from PostgreSQL, creates a short-lived signed read URL for the private recording, and sends one remote-URL request to Deepgram Whisper with punctuation, smart formatting, utterances, and the `latest` diarization model enabled. The normalized response persists one timestamped `Transcript`, its `MeetingSpeaker` rows, and speaker-labelled `TranscriptSegment` rows atomically before the deterministic transcript representation is sent to the server-side DeepSeek provider for summary, decision, and action-item extraction. Each response is parsed as JSON and validated with the shared Zod schemas before any intelligence is persisted. `PREPROCESSING` starts at 10%, the synchronous transcription-plus-diarization stage moves from 20% to 68%, analysis stages report 78%, 85%, and 92%, persistence reports 97%, and completion is 100%. Each transition updates both the meeting and its `ProcessingJob` transactionally, while BullMQ progress is secondary. Automatic failures retry at most three times with exponential backoff; terminal failures persist a safe error and move both records to `FAILED`. Redis retains up to 100 completed jobs for one hour and 100 failed jobs for one day.
-
-When a retry finds a valid transcript, the worker skips Deepgram and resumes at DeepSeek analysis. This preserves the transcript after an analysis failure and avoids unnecessary transcription spend. Intelligence persistence is replacement-based inside one transaction: the summary is upserted and generated decisions/action items are replaced only after all three model outputs pass parsing and validation. The normal path intentionally does not chunk recordings; future hardening for unusually large or complex recordings should use Deepgram's asynchronous callback API so speaker IDs remain continuous.
-
-The meeting results API is available at `GET /api/v1/meetings/:id/intelligence`. Action-item status changes use `PATCH /api/v1/action-items/:id` with `{ "status": "OPEN" | "IN_PROGRESS" | "COMPLETED" }`. The web Overview tab reads these durable records after completion; the Transcript tab remains available independently.
-
-PostgreSQL remains the browser-visible source of truth across refreshes and app restarts. BullMQ provides its normal stalled-job and retry recovery, but this local milestone runs the API and worker in the same NestJS process; it does not add separate worker deployment, distributed reconciliation, WebSockets, or AI processing.
-
-## Production hardening and release flow
-
-The API applies Helmet security headers, explicit CORS origins from `FRONTEND_URL`, request correlation IDs, structured request logs, and a standard safe error response:
-
-```json
-{
-  "statusCode": 400,
-  "code": "VALIDATION_FAILED",
-  "message": "Validation failed.",
-  "requestId": "..."
-}
-```
-
-Authenticated throttling is keyed by the Clerk subject extracted from the bearer token and still verified authoritatively by Clerk. Anonymous share traffic falls back to client IP. Set `TRUST_PROXY` to the exact reverse-proxy hop count used by the hosting platform so public rate limits see the real client address. Expensive processing, retry, reprocess, upload, playback-URL, and share-creation routes have stricter limits than the general API.
-
-Meeting audio remains private. Owners receive five-minute signed playback URLs; public share responses never include audio metadata or URLs. Share tokens contain 256 bits of randomness, only their SHA-256 hashes are stored, and a new link revokes the previous active link. Expired and revoked links return the same unavailable experience to anonymous visitors.
-
-Deletion cascades database-owned transcript, intelligence, processing, and share records. Referenced Storage objects are removed after meeting or recording deletion, and replacement uploads remove the previous object after the new database update succeeds. Failed confirmations are cleaned immediately. Before authorizing another upload, the API removes up to 100 completed but unreferenced objects older than `ABANDONED_UPLOAD_MAX_AGE_HOURS`; larger backlogs should also be swept by a scheduled production maintenance job.
-
-For every production release:
+For each production release:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -236,4 +338,32 @@ pnpm lint
 pnpm build
 ```
 
-`pnpm db:deploy` runs `prisma migrate deploy`; never run `prisma migrate dev` in a deployment. Deploy the migration before starting the new API. Configure PostgreSQL/Supabase, Clerk, Redis, Deepgram, DeepSeek, frontend origins, timeout values, and concurrency limits through the hosting platform's secret/environment manager. The liveness endpoint exposes only `{ "status": "ok" }`; the readiness endpoint checks PostgreSQL and Redis without calling AI providers.
+Deploy committed migrations before starting the new API. Use `prisma migrate deploy` in deployment environments; do not use `prisma migrate dev` there.
+
+## Security model
+
+- Meeting, transcript, intelligence, audio, and share-management queries are scoped to the authenticated Clerk user.
+- The browser never receives Clerk secrets, the Supabase service-role key, database credentials, or model API keys.
+- Recordings live in a private bucket under user-scoped object paths.
+- Owners receive five-minute signed playback URLs; anonymous share responses never include audio access.
+- Share tokens contain 256 bits of randomness and only their SHA-256 hashes are stored.
+- Expired and revoked links return the same unavailable response to anonymous callers.
+- Generated intelligence is persisted only after strict schema validation.
+- Helmet, explicit CORS origins, request correlation IDs, structured logs, and user-aware throttling protect the API boundary.
+- Deleting a meeting cascades its database-owned transcript, intelligence, processing, and share records, then removes referenced Storage objects.
+
+## Processing and recovery guarantees
+
+Queue jobs use stable IDs to reject duplicate active work. Meeting state and its single processing record are updated transactionally at each pipeline transition. Automatic failures retry with exponential backoff; terminal failures persist a safe error for the user.
+
+If transcription succeeds but analysis fails, the transcript remains stored. A normal retry resumes from analysis, while the explicit reprocess route forces a fresh Deepgram transcription. Intelligence replacement happens in one transaction only after all generated outputs pass validation, preventing partially updated results.
+
+The current deployment runs the API and BullMQ worker in the same NestJS process. A larger production deployment can separate workers and add distributed reconciliation without changing the persisted meeting lifecycle.
+
+## Current scope
+
+The system processes one recording per meeting and sends each recording to Deepgram as a single remote-URL transcription request. It does not currently provide live meeting capture, calendar integrations, collaborative editing, or long-recording chunking. Generated summaries and extracted follow-up should be reviewed against the linked transcript evidence before they drive consequential work.
+
+## License
+
+No open-source license is currently declared. Add a `LICENSE` file before distributing the project or accepting contributions under specific terms.
