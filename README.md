@@ -13,6 +13,7 @@ The application is built for teams that need meeting output to remain useful aft
 - Extracts decisions and action items with supporting evidence and source timestamps.
 - Lets users search a transcript, jump to exact moments, and replace generated speaker labels with real names.
 - Supports editing an action item's task, owner, due date, priority, and workflow status.
+- Exports all meeting action items as a detailed checklist page in a user-selected Notion destination.
 - Runs processing asynchronously with BullMQ, durable PostgreSQL state, progress reporting, retries, and safe failure recovery.
 - Creates expiring or permanent public result links that can be revoked without exposing meeting audio.
 - Isolates every authenticated meeting operation by Clerk user ownership.
@@ -120,6 +121,7 @@ apps/
         ├── intelligence/        # DeepSeek prompts, validation, and persistence
         ├── jobs/                # Queue configuration and meeting processor
         ├── meetings/            # Meeting, upload, transcript, and retry endpoints
+        ├── notion/              # Notion OAuth, page discovery, and checklist export
         ├── sharing/             # Expiring public result links
         ├── storage/             # Private Supabase Storage access
         ├── transcription/       # Deepgram provider and normalization
@@ -194,7 +196,16 @@ The API verifies that the configured audio bucket is private before it authorize
 
 The API independently verifies Clerk bearer tokens. A deletion webhook anonymizes the local profile while preserving meeting records for retention; it does not cascade-delete user meetings.
 
-### 5. Configure AI providers
+### 5. Configure Notion
+
+1. Create a public connection in the Notion developer portal with Read Content and Insert Content capabilities.
+2. Register `NOTION_REDIRECT_URI` as an OAuth redirect URI. For local development, use `http://localhost:3001/api/v1/integrations/notion/oauth/callback`.
+3. Set `NOTION_CLIENT_ID` and `NOTION_CLIENT_SECRET` in the backend environment.
+4. Generate a dedicated 32-byte encryption key, encode it as base64, and store it as `NOTION_TOKEN_ENCRYPTION_KEY`.
+
+Each app user authorizes one Notion workspace and chooses which pages the connection can access. Access and refresh tokens are encrypted before they are stored.
+
+### 6. Configure AI providers
 
 Add `DEEPGRAM_API_KEY` and `DEEPSEEK_API_KEY` to the root `.env`. The default provider configuration is:
 
@@ -205,7 +216,7 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
 
-### 6. Start the application
+### 7. Start the application
 
 Start Redis, generate Prisma Client, and run the web and API workspaces:
 
@@ -229,6 +240,10 @@ Open [http://localhost:3000](http://localhost:3000). The API is available at [ht
 | `CLERK_SECRET_KEY`                  | Yes          | Server-only Clerk credential                          |
 | `CLERK_JWT_KEY`                     | No           | PEM public key for networkless token verification     |
 | `CLERK_WEBHOOK_SECRET`              | Recommended  | Verifies Clerk lifecycle webhooks                     |
+| `NOTION_CLIENT_ID`                  | Yes          | Public Notion connection identifier                   |
+| `NOTION_CLIENT_SECRET`              | Yes          | Server-only Notion OAuth credential                   |
+| `NOTION_REDIRECT_URI`               | Yes          | Registered Notion OAuth callback URL                  |
+| `NOTION_TOKEN_ENCRYPTION_KEY`       | Yes          | Base64 32-byte key for stored Notion tokens           |
 | `NEXT_PUBLIC_API_URL`               | Yes          | Browser-facing REST API base URL                      |
 | `SUPABASE_URL`                      | Yes          | Backend Supabase project URL                          |
 | `SUPABASE_SERVICE_ROLE_KEY`         | Yes          | Server-only Storage administration key                |
@@ -279,6 +294,12 @@ All API paths use the `/api/v1` prefix.
 | `PATCH /meetings/:meetingId/speakers/:speakerId` | Rename a detected speaker                          |
 | `GET /meetings/:id/intelligence`                 | Read summary, decisions, and action items          |
 | `PATCH /action-items/:id`                        | Edit or advance an action item                     |
+| `GET /integrations/notion`                       | Read the current user's Notion connection          |
+| `POST /integrations/notion/oauth/start`          | Start user-scoped Notion OAuth                     |
+| `GET /integrations/notion/oauth/callback`        | Complete Notion OAuth                              |
+| `GET /integrations/notion/pages`                 | Search accessible Notion parent pages              |
+| `DELETE /integrations/notion`                    | Revoke and remove the Notion connection            |
+| `POST /meetings/:meetingId/exports/notion`       | Export action items as a Notion checklist          |
 | `POST /meetings/:meetingId/shares`               | Create a public result link                        |
 | `DELETE /meetings/:meetingId/shares/:shareId`    | Revoke a result link                               |
 | `GET /shares/:token`                             | Read shared meeting results without authentication |
@@ -306,6 +327,7 @@ pnpm --filter @meeting-intelligence/api test:meetings
 pnpm --filter @meeting-intelligence/api test:auth
 pnpm --filter @meeting-intelligence/api test:transcription
 pnpm --filter @meeting-intelligence/api test:hardening
+pnpm --filter @meeting-intelligence/api test:notion
 pnpm --filter @meeting-intelligence/web test:meeting-utils
 ```
 

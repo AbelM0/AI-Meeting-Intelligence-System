@@ -17,6 +17,7 @@ import { userAwareTracker } from './common/rate-limit/user-aware-tracker';
 import { DatabaseModule } from './database/database.module';
 import { JobsModule } from './jobs/jobs.module';
 import { SharingModule } from './sharing/sharing.module';
+import { NotionModule } from './notion/notion.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SharingModule } from './sharing/sharing.module';
     TranscriptionModule,
     IntelligenceModule,
     SharingModule,
+    NotionModule,
   ],
   controllers: [HealthController],
   providers: [

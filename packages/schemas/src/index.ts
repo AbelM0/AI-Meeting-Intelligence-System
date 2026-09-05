@@ -91,10 +91,26 @@ export const createMeetingShareSchema = z
   .object({ expiration: shareExpirationSchema.default('7_DAYS') })
   .strict();
 
+export const startNotionOAuthSchema = z.object({ meetingId: z.string().uuid() }).strict();
+
+export const notionPageQuerySchema = z
+  .object({
+    query: z.string().trim().max(200).optional(),
+    cursor: z.string().uuid().optional(),
+  })
+  .strict();
+
+export const exportActionItemsToNotionSchema = z
+  .object({ parentPageId: z.string().uuid() })
+  .strict();
+
 export type CreateMeetingInput = z.infer<typeof createMeetingSchema>;
 export type MeetingListQueryInput = z.infer<typeof meetingListQuerySchema>;
 export type ShareExpirationValue = z.infer<typeof shareExpirationSchema>;
 export type CreateMeetingShareInput = z.infer<typeof createMeetingShareSchema>;
+export type StartNotionOAuthInput = z.infer<typeof startNotionOAuthSchema>;
+export type NotionPageQueryInput = z.infer<typeof notionPageQuerySchema>;
+export type ExportActionItemsToNotionInput = z.infer<typeof exportActionItemsToNotionSchema>;
 export type MeetingStatusValue = z.infer<typeof meetingStatusSchema>;
 export type ProcessingJobStatusValue = z.infer<typeof processingJobStatusSchema>;
 export type MeetingSummaryInput = z.infer<typeof meetingSummarySchema>;

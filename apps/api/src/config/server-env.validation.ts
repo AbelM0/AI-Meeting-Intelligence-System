@@ -13,6 +13,10 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
     'DEEPSEEK_MODEL',
     'DEEPSEEK_BASE_URL',
     'FRONTEND_URL',
+    'NOTION_CLIENT_ID',
+    'NOTION_CLIENT_SECRET',
+    'NOTION_REDIRECT_URI',
+    'NOTION_TOKEN_ENCRYPTION_KEY',
   ] as const;
   const missing: string[] = required.filter(
     (key) => typeof config[key] !== 'string' || config[key].trim() === '',
@@ -66,6 +70,7 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
     MEETING_JOB_ATTEMPTS: 3,
     MEETING_JOB_BACKOFF_MS: 2_000,
     ABANDONED_UPLOAD_MAX_AGE_HOURS: 24,
+    NOTION_TIMEOUT_MS: 15_000,
   } as const;
   for (const [key, fallback] of Object.entries(positiveIntegers)) {
     const value = config[key] === undefined || config[key] === '' ? fallback : Number(config[key]);
@@ -76,5 +81,28 @@ export function validateServerEnv(config: Record<string, unknown>): Record<strin
   config.SUPABASE_STORAGE_BUCKET = bucket;
   config.API_PORT = serverPort;
   config.LANGSMITH_TRACING = langSmithTracing;
+  let notionEncryptionKey: Buffer;
+  try {
+    notionEncryptionKey = Buffer.from(String(config.NOTION_TOKEN_ENCRYPTION_KEY), 'base64');
+  } catch {
+    throw new Error('NOTION_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
+  }
+  if (notionEncryptionKey.length !== 32) {
+    throw new Error('NOTION_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key.');
+  }
+  const configuredUrls = [
+    ['NOTION_REDIRECT_URI', String(config.NOTION_REDIRECT_URI)],
+    ...String(config.FRONTEND_URL)
+      .split(',')
+      .map((value) => ['FRONTEND_URL', value.trim()]),
+  ] as const;
+  for (const [key, value] of configuredUrls) {
+    try {
+      const parsed = new URL(value);
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol.');
+    } catch {
+      throw new Error(`${key} must contain only valid HTTP or HTTPS URLs.`);
+    }
+  }
   return config;
 }

@@ -6,10 +6,11 @@ import {
   DownloadSimpleIcon,
   LinkIcon,
   PrinterIcon,
+  ExportIcon,
   ShareNetworkIcon,
   XIcon,
 } from '@phosphor-icons/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ import {
   useMeetingShares,
   useRevokeMeetingShare,
 } from '../hooks/use-meetings';
+import { NotionExportDialog } from './notion-export-dialog';
 
 const expirationOptions: Array<{ value: ShareExpirationValue; label: string }> = [
   { value: '24_HOURS', label: '24 hours' },
@@ -61,10 +63,28 @@ export function MeetingActions({
   const revokeShare = useRevokeMeetingShare(meetingId);
   const [expiration, setExpiration] = useState<ShareExpirationValue>('7_DAYS');
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
+  const [notionOpen, setNotionOpen] = useState(false);
+  const [oauthNotice, setOAuthNotice] = useState<
+    'connected' | 'cancelled' | 'expired' | 'failed' | 'invalid_state' | null
+  >(null);
   const activeShare = useMemo(
     () => sharesQuery.data?.find((share) => !share.revokedAt) ?? null,
     [sharesQuery.data],
   );
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const notice = url.searchParams.get('notion');
+    if (!['connected', 'cancelled', 'expired', 'failed', 'invalid_state'].includes(notice ?? ''))
+      return;
+    url.searchParams.delete('notion');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+    const timeout = window.setTimeout(() => {
+      setOAuthNotice(notice as typeof oauthNotice);
+      setNotionOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   async function copyText(value: string, success: string, failure: string) {
     try {
@@ -136,8 +156,26 @@ export function MeetingActions({
             <CopyIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
             Copy meeting summary
           </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!intelligenceQuery.data?.actionItems.length}
+            onSelect={() => setNotionOpen(true)}
+          >
+            <ExportIcon className="h-4 w-4" weight="bold" aria-hidden="true" />
+            Export action items to Notion
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <NotionExportDialog
+        meetingId={meetingId}
+        actionItemCount={intelligenceQuery.data?.actionItems.length ?? 0}
+        open={notionOpen}
+        oauthNotice={oauthNotice}
+        onClose={() => {
+          setNotionOpen(false);
+          setOAuthNotice(null);
+        }}
+      />
 
       <button
         type="button"
@@ -212,9 +250,7 @@ export function MeetingActions({
 
               {createdUrl ? (
                 <div className="rounded-lg bg-accent p-4">
-                  <p className="break-all font-mono text-xs leading-5 text-primary">
-                    {createdUrl}
-                  </p>
+                  <p className="break-all font-mono text-xs leading-5 text-primary">{createdUrl}</p>
                   <button
                     type="button"
                     onClick={() =>

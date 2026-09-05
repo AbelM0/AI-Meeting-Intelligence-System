@@ -19,6 +19,10 @@ function validEnvironment(): Record<string, unknown> {
     DEEPSEEK_MODEL: 'deepseek-v4-flash',
     DEEPSEEK_BASE_URL: 'https://api.deepseek.com',
     FRONTEND_URL: 'https://app.example.com',
+    NOTION_CLIENT_ID: 'notion-client',
+    NOTION_CLIENT_SECRET: 'notion-secret',
+    NOTION_REDIRECT_URI: 'https://api.example.com/api/v1/integrations/notion/oauth/callback',
+    NOTION_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
   };
 }
 
@@ -66,5 +70,17 @@ void test('environment validation rejects an invalid server port', () => {
   assert.throws(
     () => validateServerEnv({ ...validEnvironment(), PORT: 'not-a-port' }),
     /PORT or API_PORT/,
+  );
+});
+
+void test('environment validation accepts multiple frontend origins and rejects weak token keys', () => {
+  const result = validateServerEnv({
+    ...validEnvironment(),
+    FRONTEND_URL: 'https://app.example.com, http://localhost:3000',
+  });
+  assert.equal(result.FRONTEND_URL, 'https://app.example.com, http://localhost:3000');
+  assert.throws(
+    () => validateServerEnv({ ...validEnvironment(), NOTION_TOKEN_ENCRYPTION_KEY: 'too-short' }),
+    /base64-encoded 32-byte key/,
   );
 });

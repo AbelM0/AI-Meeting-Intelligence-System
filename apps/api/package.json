@@ -12,7 +12,8 @@
     "test:meetings": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/meetings/meetings.service.spec.js",
     "test:auth": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/auth-regression.spec.js",
     "test:transcription": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/transcription/providers/deepgram-transcription.provider.spec.js",
-    "test:hardening": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/hardening.spec.js"
+    "test:hardening": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/hardening.spec.js",
+    "test:notion": "tsc -p tsconfig.json --outDir .test-dist --incremental false && node .test-dist/notion/notion-token-cipher.service.spec.js && node .test-dist/notion/notion.service.spec.js"
   },
   "dependencies": {
     "@clerk/backend": "^3.15.0",

@@ -32,6 +32,11 @@ import {
   createMeetingShare,
   getMeetingShares,
   revokeMeetingShare,
+  disconnectNotion,
+  exportActionItemsToNotion,
+  getNotionConnection,
+  getNotionPages,
+  startNotionOAuth,
 } from '../api/meetings';
 import {
   uploadMeetingAudio,
@@ -46,6 +51,8 @@ export const meetingQueryKeys = {
   transcript: (id: string) => ['meetings', id, 'transcript'] as const,
   intelligence: (id: string) => ['meetings', id, 'intelligence'] as const,
   shares: (id: string) => ['meetings', id, 'shares'] as const,
+  notionConnection: ['integrations', 'notion'] as const,
+  notionPages: (query: string) => ['integrations', 'notion', 'pages', query] as const,
 };
 
 const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
@@ -534,5 +541,62 @@ export function useRevokeMeetingShare(meetingId: string) {
         title: getApiErrorMessage(error, 'The share link could not be revoked.'),
       });
     },
+  });
+}
+
+export function useNotionConnection(enabled = true) {
+  return useQuery({
+    queryKey: meetingQueryKeys.notionConnection,
+    queryFn: getNotionConnection,
+    enabled,
+    retry: false,
+  });
+}
+
+export function useNotionPages(query: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: meetingQueryKeys.notionPages(query),
+    queryFn: ({ pageParam }) => getNotionPages(query, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled,
+    retry: false,
+  });
+}
+
+export function useStartNotionOAuth() {
+  return useMutation({
+    mutationFn: startNotionOAuth,
+    onSuccess: ({ authorizationUrl }) => window.location.assign(authorizationUrl),
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Notion connection could not be started.'),
+      });
+    },
+  });
+}
+
+export function useDisconnectNotion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: disconnectNotion,
+    onSuccess: async () => {
+      toast({ title: 'Notion disconnected.' });
+      queryClient.removeQueries({ queryKey: ['integrations', 'notion', 'pages'] });
+      await queryClient.invalidateQueries({ queryKey: meetingQueryKeys.notionConnection });
+    },
+    onError: (error) => {
+      toast({
+        variant: 'destructive',
+        title: getApiErrorMessage(error, 'Notion could not be disconnected.'),
+      });
+    },
+  });
+}
+
+export function useExportActionItemsToNotion(meetingId: string) {
+  return useMutation({
+    mutationFn: (parentPageId: string) => exportActionItemsToNotion(meetingId, { parentPageId }),
   });
 }

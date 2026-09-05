@@ -38,26 +38,27 @@ enum ActionItemStatus {
 }
 
 model Meeting {
-  id            String           @id @default(uuid()) @db.Uuid
-  title         String
-  audioPath     String?
-  audioFileName String?
-  audioMimeType String?
-  fileSize      Int?
-  duration      Float?
-  language      String?
-  status        MeetingStatus    @default(UPLOADED)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  userId        String
-  user          User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-  processingJob ProcessingJob?
-  transcript    Transcript?
-  speakers      MeetingSpeaker[]
-  summary       MeetingSummary?
-  decisions     Decision[]
-  actionItems   ActionItem[]
-  shares        MeetingShare[]
+  id                String             @id @default(uuid()) @db.Uuid
+  title             String
+  audioPath         String?
+  audioFileName     String?
+  audioMimeType     String?
+  fileSize          Int?
+  duration          Float?
+  language          String?
+  status            MeetingStatus      @default(UPLOADED)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  processingJob     ProcessingJob?
+  transcript        Transcript?
+  speakers          MeetingSpeaker[]
+  summary           MeetingSummary?
+  decisions         Decision[]
+  actionItems       ActionItem[]
+  shares            MeetingShare[]
+  notionOAuthStates NotionOAuthState[]
 
   @@index([userId])
   @@index([userId, createdAt, id])
@@ -77,13 +78,45 @@ model MeetingShare {
 }
 
 model User {
-  id        String    @id
-  email     String?
-  name      String?
-  avatarUrl String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  meetings  Meeting[]
+  id                String             @id
+  email             String?
+  name              String?
+  avatarUrl         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  meetings          Meeting[]
+  notionConnection  NotionConnection?
+  notionOAuthStates NotionOAuthState[]
+}
+
+model NotionConnection {
+  id                    String   @id @default(uuid()) @db.Uuid
+  userId                String   @unique
+  workspaceId           String
+  workspaceName         String?
+  workspaceIcon         String?
+  botId                 String
+  encryptedAccessToken  String
+  encryptedRefreshToken String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model NotionOAuthState {
+  id        String   @id @default(uuid()) @db.Uuid
+  stateHash String   @unique
+  userId    String
+  meetingId String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([meetingId])
 }
 
 model ProcessingJob {

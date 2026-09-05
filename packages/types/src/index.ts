@@ -183,3 +183,33 @@ export type PublicMeetingShare = {
   transcript: TranscriptResponse | null;
   expiresAt: string | null;
 };
+
+export type NotionConnectionStatus =
+  | { connected: false }
+  | {
+      connected: true;
+      workspaceId: string;
+      workspaceName: string | null;
+      workspaceIcon: string | null;
+    };
+
+export type NotionOAuthStart = {
+  authorizationUrl: string;
+};
+
+export type NotionPageOption = {
+  id: string;
+  title: string;
+  url: string;
+};
+
+export type NotionPageListResponse = {
+  items: NotionPageOption[];
+  nextCursor: string | null;
+};
+
+export type NotionExportResult = {
+  pageId: string;
+  pageTitle: string;
+  url: string;
+};

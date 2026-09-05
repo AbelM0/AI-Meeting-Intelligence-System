@@ -2,6 +2,7 @@ import type {
   ConfirmAudioUploadInput,
   CreateMeetingInput,
   CreateMeetingShareInput,
+  ExportActionItemsToNotionInput,
   RequestAudioUploadInput,
   UpdateActionItemInput,
   UpdateMeetingSpeakerInput,
@@ -20,6 +21,10 @@ import type {
   MeetingShareCreated,
   MeetingShareSummary,
   PublicMeetingShare,
+  NotionConnectionStatus,
+  NotionExportResult,
+  NotionOAuthStart,
+  NotionPageListResponse,
 } from '@meeting-intelligence/types';
 import { apiClient } from '@/lib/api-client';
 
@@ -154,5 +159,42 @@ export async function revokeMeetingShare(meetingId: string, shareId: string): Pr
 
 export async function getPublicMeetingShare(token: string): Promise<PublicMeetingShare> {
   const { data } = await apiClient.get<PublicMeetingShare>(`/shares/${encodeURIComponent(token)}`);
+  return data;
+}
+
+export async function getNotionConnection(): Promise<NotionConnectionStatus> {
+  const { data } = await apiClient.get<NotionConnectionStatus>('/integrations/notion');
+  return data;
+}
+
+export async function startNotionOAuth(meetingId: string): Promise<NotionOAuthStart> {
+  const { data } = await apiClient.post<NotionOAuthStart>('/integrations/notion/oauth/start', {
+    meetingId,
+  });
+  return data;
+}
+
+export async function getNotionPages(
+  query: string,
+  cursor?: string,
+): Promise<NotionPageListResponse> {
+  const { data } = await apiClient.get<NotionPageListResponse>('/integrations/notion/pages', {
+    params: { ...(query ? { query } : {}), ...(cursor ? { cursor } : {}) },
+  });
+  return data;
+}
+
+export async function disconnectNotion(): Promise<void> {
+  await apiClient.delete('/integrations/notion');
+}
+
+export async function exportActionItemsToNotion(
+  meetingId: string,
+  input: ExportActionItemsToNotionInput,
+): Promise<NotionExportResult> {
+  const { data } = await apiClient.post<NotionExportResult>(
+    `/meetings/${meetingId}/exports/notion`,
+    input,
+  );
   return data;
 }

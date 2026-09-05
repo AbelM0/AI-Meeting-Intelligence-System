@@ -13,6 +13,8 @@ export type {
   Decision,
   MeetingSpeaker,
   MeetingShare,
+  NotionConnection,
+  NotionOAuthState,
   ProcessingJob as ProcessingJobRecord,
   Transcript,
   TranscriptSegment,
