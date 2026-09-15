@@ -60,19 +60,35 @@ export class MeetingsService {
 
   async findAll(userId: string, query: MeetingListQueryInput): Promise<MeetingListResponse> {
     const cursor = query.cursor ? this.decodeCursor(query.cursor) : null;
+    const ascending = query.sort === 'OLDEST';
+    const direction = ascending ? 'asc' : 'desc';
+    const comparison = ascending ? 'gt' : 'lt';
+    const filters: Prisma.MeetingWhereInput[] = [];
+    if (query.search) {
+      filters.push({ OR: [
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { summary: { is: { overview: { contains: query.search, mode: 'insensitive' } } } },
+      ] });
+    }
+    if (query.status && query.status !== 'ALL') {
+      filters.push({ status: query.status === 'PROCESSING'
+        ? { in: ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'] }
+        : query.status === 'READY' ? 'COMPLETED' : query.status });
+    }
     const meetings = await this.prisma.meeting.findMany({
       where: {
         userId,
+        AND: filters,
         ...(cursor
           ? {
               OR: [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                { createdAt: { [comparison]: cursor.createdAt } },
+                { createdAt: cursor.createdAt, id: { [comparison]: cursor.id } },
               ],
             }
           : {}),
       },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: direction }, { id: direction }],
       take: query.limit + 1,
       select: {
         id: true,

@@ -7,7 +7,7 @@ import type {
   MeetingIntelligence,
   Transcript,
 } from '@meeting-intelligence/types';
-import type { MeetingStatusValue } from '@meeting-intelligence/schemas';
+import type { MeetingListQueryInput, MeetingStatusValue } from '@meeting-intelligence/schemas';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { getApiErrorMessage } from '@/lib/api-client';
@@ -62,12 +62,10 @@ const ACTIVE_PROCESSING_STATUSES: readonly MeetingStatusValue[] = [
   'ANALYZING',
 ];
 
-export function useMeetings() {
-  return useInfiniteQuery({
-    queryKey: meetingQueryKeys.all,
-    queryFn: ({ pageParam }) => getMeetings(pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+export function useMeetings(query: MeetingListQueryInput) {
+  return useQuery({
+    queryKey: [...meetingQueryKeys.all, 'list', query],
+    queryFn: ({ signal }) => getMeetings(query, signal),
   });
 }
 

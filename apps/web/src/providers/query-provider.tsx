@@ -10,8 +10,16 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
 
   if (!isLoaded) {
     return (
-      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
-        Loading secure workspace…
+      <div className="grid min-h-dvh place-items-center bg-background px-6" role="status" aria-label="Loading Auralis">
+        <div className="flex flex-col items-center">
+          <div className="flex h-12 items-center gap-1.5 text-primary motion-safe:animate-pulse" aria-hidden="true">
+            {[16, 28, 44, 32, 20].map((height, index) => (
+              <span key={index} className="w-1.5 rounded-full bg-current" style={{ height }} />
+            ))}
+          </div>
+          <p className="mt-5 text-xl font-semibold tracking-tight">Auralis</p>
+          <p className="mt-2 text-sm text-muted-foreground">Getting things ready…</p>
+        </div>
       </div>
     );
   }

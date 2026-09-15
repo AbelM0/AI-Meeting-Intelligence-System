@@ -122,3 +122,55 @@ void test('meeting list exposes relation counts without returning relation rows'
   assert.equal(meeting.speakerCount, 3);
   assert.equal('decisions' in meeting, false);
 });
+
+void test('meeting pagination trims the lookahead row and keeps filters and ownership on both sort directions', async () => {
+  const createdAt = new Date('2026-09-06T12:00:00.000Z');
+  const rows = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'].map((id) => ({
+    id, title: 'Planning', status: 'ANALYZING', duration: null, createdAt,
+    summary: null, _count: { decisions: 0, actionItems: 0, speakers: 0 },
+  }));
+  for (const sort of ['NEWEST', 'OLDEST'] as const) {
+    const requests: Record<string, unknown>[] = [];
+    const prisma = { meeting: { findMany: (request: Record<string, unknown>) => {
+      requests.push(request);
+      return Promise.resolve(requests.length === 1 ? [...rows] : [rows[1]]);
+    } } };
+    const service = new MeetingsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
+    const query = { limit: 1, search: 'Planning', status: 'PROCESSING' as const, sort };
+    const first = await service.findAll('user-a', query);
+    assert.equal(first.items.length, 1);
+    assert.equal(first.items[0].id, rows[0].id);
+    assert.ok(first.nextCursor);
+    const second = await service.findAll('user-a', { ...query, cursor: first.nextCursor });
+    assert.equal(second.items[0].id, rows[1].id);
+    assert.equal(second.nextCursor, null);
+    const comparison = sort === 'OLDEST' ? 'gt' : 'lt';
+    const direction = sort === 'OLDEST' ? 'asc' : 'desc';
+    for (const request of requests) {
+      assert.equal(request.take, 2);
+      assert.deepEqual(request.orderBy, [{ createdAt: direction }, { id: direction }]);
+      const where = request.where as Record<string, unknown>;
+      assert.equal(where.userId, 'user-a');
+      assert.deepEqual(where.AND, [
+        { OR: [
+          { title: { contains: 'Planning', mode: 'insensitive' } },
+          { summary: { is: { overview: { contains: 'Planning', mode: 'insensitive' } } } },
+        ] },
+        { status: { in: ['QUEUED', 'PREPROCESSING', 'TRANSCRIBING', 'ANALYZING'] } },
+      ]);
+    }
+    assert.deepEqual((requests[1].where as Record<string, unknown>).OR, [
+      { createdAt: { [comparison]: createdAt } },
+      { createdAt, id: { [comparison]: rows[0].id } },
+    ]);
+  }
+});
+
+void test('empty meeting pages have no next cursor and Ready maps to completed records', async () => {
+  const prisma = { meeting: { findMany: ({ where }: { where: { AND: unknown[] } }) => {
+    assert.deepEqual(where.AND, [{ status: 'COMPLETED' }]);
+    return Promise.resolve([]);
+  } } };
+  const service = new MeetingsService(prisma as never, {} as never, {} as never, {} as never, {} as never);
+  assert.deepEqual(await service.findAll('user-a', { limit: 12, status: 'READY' }), { items: [], nextCursor: null });
+});

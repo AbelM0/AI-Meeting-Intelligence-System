@@ -82,6 +82,9 @@ export const meetingListQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(20),
     cursor: z.string().trim().min(1).max(500).optional(),
+    search: z.string().trim().max(200).optional(),
+    status: z.enum(['ALL', 'READY', 'PROCESSING', 'FAILED', 'UPLOADED']).optional(),
+    sort: z.enum(['NEWEST', 'OLDEST']).optional(),
   })
   .strict();
 

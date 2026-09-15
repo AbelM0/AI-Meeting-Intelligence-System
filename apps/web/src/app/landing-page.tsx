@@ -1,5 +1,6 @@
 'use client';
 
+import { UserButton, useAuth } from '@clerk/nextjs';
 import {
   ArrowRightIcon,
   CheckCircleIcon,
@@ -245,6 +246,7 @@ function ProductPreview() {
 
 export function LandingPage() {
   const reducedMotion = useReducedMotion();
+  const { isLoaded, isSignedIn } = useAuth();
 
   return (
     <main className="w-full max-w-full overflow-x-hidden bg-background text-foreground">
@@ -253,7 +255,7 @@ export function LandingPage() {
           initial={reducedMotion ? false : { opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.65, ease }}
-          className="mx-auto flex h-16 max-w-[1400px] items-center justify-between rounded-xl border border-popover/70 bg-popover/90 px-4 shadow-[0_14px_45px_-30px_rgba(30,41,59,0.5)] backdrop-blur-xl sm:px-5"
+          className="mx-auto flex min-h-16 max-w-[1400px] flex-wrap items-center justify-between gap-2 rounded-xl border border-popover/70 bg-popover/90 px-4 py-2 shadow-[0_14px_45px_-30px_rgba(30,41,59,0.5)] backdrop-blur-xl sm:px-5"
           aria-label="Main navigation"
         >
           <Link href="/" aria-label="Auralis home">
@@ -267,24 +269,42 @@ export function LandingPage() {
               How it works
             </motion.a>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex max-w-full items-center gap-1 sm:gap-2">
             <ThemeToggle />
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                href="/sign-in"
-                className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-muted-foreground sm:px-4"
-              >
-                Log in
-              </Link>
-            </motion.div>
-            <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
-              <Link
-                href="/sign-up"
-                className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-sm font-semibold text-white sm:px-4"
-              >
-                Start free
-              </Link>
-            </motion.div>
+            {isLoaded && isSignedIn ? (
+              <>
+                <div className="flex min-h-11 min-w-11 items-center justify-center">
+                  <UserButton />
+                </div>
+                <Link
+                  href="/meetings"
+                  className="inline-flex min-h-11 items-center rounded-lg bg-primary px-2 text-xs font-semibold text-white transition-colors hover:bg-primary/90 sm:px-4 sm:text-sm"
+                >
+                  Continue to workspace
+                </Link>
+              </>
+            ) : isLoaded ? (
+              <>
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+                  <Link
+                    href="/sign-in"
+                    className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-muted-foreground sm:px-4"
+                  >
+                    Log in
+                  </Link>
+                </motion.div>
+                <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }}>
+                  <Link
+                    href="/sign-up"
+                    className="inline-flex min-h-11 items-center rounded-lg bg-primary px-3 text-sm font-semibold text-white sm:px-4"
+                  >
+                    Start free
+                  </Link>
+                </motion.div>
+              </>
+            ) : (
+              <span className="h-11 w-40 rounded-lg bg-muted motion-safe:animate-pulse" role="status" aria-label="Loading account" />
+            )}
           </div>
         </motion.nav>
       </header>

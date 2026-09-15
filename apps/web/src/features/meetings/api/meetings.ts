@@ -6,6 +6,7 @@ import type {
   RequestAudioUploadInput,
   UpdateActionItemInput,
   UpdateMeetingSpeakerInput,
+  MeetingListQueryInput,
 } from '@meeting-intelligence/schemas';
 import type {
   AudioUploadAuthorization,
@@ -33,9 +34,10 @@ export async function createMeeting(input: CreateMeetingInput): Promise<Meeting>
   return data;
 }
 
-export async function getMeetings(cursor?: string): Promise<MeetingListResponse> {
+export async function getMeetings(query: MeetingListQueryInput, signal?: AbortSignal): Promise<MeetingListResponse> {
   const { data } = await apiClient.get<MeetingListResponse>('/meetings', {
-    params: { limit: 20, ...(cursor ? { cursor } : {}) },
+    params: query,
+    signal,
   });
   return data;
 }
